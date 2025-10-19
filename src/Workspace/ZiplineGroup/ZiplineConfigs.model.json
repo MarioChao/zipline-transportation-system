@@ -1,0 +1,9 @@
+{
+    "className": "Configuration",
+    "attributes": {
+        "StartDelay_Objects": 0,
+        "StartDelay_Players": 0.5,
+        "TraverseSpeed": 32,
+        "WaypointTouchRadius": 1
+    }
+}

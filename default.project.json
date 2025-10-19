@@ -1,0 +1,16 @@
+{
+  "name": "zipline-transportation-system",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$path": "src/ReplicatedStorage",
+      "$ignoreUnknownInstances": true
+    },
+
+    "Workspace": {
+      "$path": "src/Workspace",
+      "$ignoreUnknownInstances": true
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+    "className": "Folder",
+    "children": [
+        {
+            "className": "Beam",
+            "name": "VFXBeam",
+            "properties": {
+                "LightEmission": 0.5,
+                "FaceCamera": true,
+                "Width0": 0.2,
+                "Width1": 0.2
+            },
+            "attributes": {
+                "Rojo_Target_Attachment0": "VFX Attachment0",
+                "Rojo_Target_Attachment1": "VFX Attachment1"
+            }
+        }
+    ]
+}

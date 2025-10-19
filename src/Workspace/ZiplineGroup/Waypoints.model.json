@@ -1,0 +1,83 @@
+{
+    "className": "Folder",
+    "children": [
+        {
+            "className": "Part",
+            "name": "Endpoint1",
+            "properties": {
+                "Color": [0.666667, 0, 0.666667],
+                "Material": "Neon",
+                "Transparency": 0.6,
+                "Size": [2, 2, 2],
+                "Position": [-20, 3, -10],
+                "CanCollide": false,
+                "CanTouch": false,
+                "Anchored": true,
+                "Shape": "Ball"
+            },
+            "children": [
+                {
+                    "className": "Attachment",
+                    "name": "WaypointAttachment",
+                    "attributes": {
+                        "Rojo_Id": "VFX Attachment0"
+                    }
+                }
+            ]
+        },
+        {
+            "className": "Part",
+            "name": "Endpoint2",
+            "properties": {
+                "Color": [0.666667, 0, 0.666667],
+                "Material": "Neon",
+                "Transparency": 0.6,
+                "Size": [2, 2, 2],
+                "Position": [-20, 3, 10],
+                "CanCollide": false,
+                "CanTouch": false,
+                "Anchored": true,
+                "Shape": "Ball"
+            },
+            "children": [
+                {
+                    "className": "Attachment",
+                    "name": "WaypointAttachment",
+                    "attributes": {
+                        "Rojo_Id": "VFX Attachment1"
+                    }
+                }
+            ]
+        },
+        {
+            "className": "Part",
+            "name": "Endpoint3",
+            "properties": {
+                "Color": [0.666667, 0, 0.666667],
+                "Material": "Neon",
+                "Transparency": 0.6,
+                "Size": [2, 2, 2],
+                "Position": [-40, 3, 10],
+                "CanCollide": false,
+                "CanTouch": false,
+                "Anchored": true,
+                "Shape": "Ball"
+            }
+        },
+        {
+            "className": "Part",
+            "name": "Endpoint4",
+            "properties": {
+                "Color": [0.666667, 0, 0.666667],
+                "Material": "Neon",
+                "Transparency": 0.6,
+                "Size": [2, 2, 2],
+                "Position": [-30, 3, 0],
+                "CanCollide": false,
+                "CanTouch": false,
+                "Anchored": true,
+                "Shape": "Ball"
+            }
+        }
+    ]
+}

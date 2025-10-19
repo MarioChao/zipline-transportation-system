@@ -1,0 +1,9 @@
+{
+    "className": "Beam",
+    "properties": {
+        "LightEmission": 0.5,
+        "FaceCamera": true,
+        "Width0": 0.2,
+        "Width1": 0.2
+    }
+}
