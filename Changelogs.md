@@ -2,8 +2,19 @@
 
 ## Futures plans
 
-- More about zipline directions?
-- Individual waypoint configs
+- Endpoint reverse direction.
+
+## [v0.0.3] Waypoint configurations | 2025/11/13
+
+New configuration `WaypointConfig`:
+- Specify whether players can activate the zipline by touching waypoints or triggering a proximity prompt.
+    - Through the `Activate_ProximityPrompt` and `Activate_PlayerTouch` attributes.
+- Specify whether waypoints will be created at the start, middle, or end of the route.
+    - Through the `Create_Start`, `Create_Middle`, and `Create_Stop` attributes.
+    - This allows the creation of directional (one-way) ziplines.
+- Original `WaypointTouchRadius` attribute is now the `Touch_Radius` attribute of `WaypointConfig`.
+
+Renamed `ZiplineConfigs` (the `Configuration`) into singular form `ZiplineConfig`.
 
 ## [v0.0.2] Template part transparency fix | 2025/11/12 (2)
 

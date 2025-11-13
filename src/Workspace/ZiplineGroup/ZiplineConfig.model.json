@@ -1,0 +1,33 @@
+{
+    "className": "Configuration",
+    "attributes": {
+        "Hide_ControlPoints": true,
+        "StartDelay_Objects": 0,
+        "StartDelay_Players": 0.5,
+        "Support_Objects": true,
+        "Support_Players": true,
+        "TraverseSpeed": 16
+    },
+    "children": [
+        {
+            "className": "Configuration",
+            "name": "WaypointConfig",
+            "attributes": {
+                "Activate_ProximityPrompt": false,
+                "Activate_PlayerTouch": true,
+                "Create_Middle": false,
+                "Create_Start": true,
+                "Create_Stop": true,
+                "Touch_Radius": 1
+            }
+        },
+        {
+            "className": "ProximityPrompt",
+            "name": "WaypointProximityPrompt",
+            "properties": {
+                "MaxActivationDistance": 6,
+                "RequiresLineOfSight": false
+            }
+        }
+    ]
+}

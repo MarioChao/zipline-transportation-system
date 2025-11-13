@@ -17,7 +17,7 @@ local Packages = script.Parent.Parent
 local SpatialQuery = require(Packages.SpatialQuery)
 local SegmentedRoute = require(Packages.SegmentedRoute)
 local LinkedRoute = SegmentedRoute.LinkedRoute
-local _SegmentedRoute = require(Packages._Index["mariochao_segmented-route@0.1.1"]["segmented-route"])
+local _SegmentedRoute = require(Packages._Index["mariochao_segmented-route@0.1.2"]["segmented-route"])
 
 
 ---------- Types ----------
@@ -32,7 +32,7 @@ type ZiplineGroupInfo = {
     connections: {RBXScriptConnection},
 }
 
-type ZiplineConfigs = ZiplineConfigs.ZiplineConfigs
+type ZiplineConfig = ZiplineConfigs.ZiplineConfig
 
 type VFXInfo = {
     VFXPart: Part,
@@ -47,7 +47,7 @@ local Constants = {}
 Constants.controlPointsFolderName = "ControlPoints"
 Constants.controlPointAttachmentName = "ControlPointAttachment"
 
-Constants.ziplineConfigsName = "ZiplineConfigs"
+Constants.ziplineConfigName = "ZiplineConfig"
 
 Constants.VFXInfoFolderName = "VFXInfo"
 Constants._DefaultVFXPart = script.DefaultVFXPart
@@ -59,6 +59,7 @@ Constants.defaultVFXInfo = {
 Constants.waypointTouchThrottle = 0.5
 
 Constants.storedTransparencyAttributeName = "StoredTransparency"
+Constants.routeAlphAttributeName = "RouteAlpha"
 
 table.freeze(Constants.defaultVFXInfo)
 table.freeze(Constants)
@@ -76,7 +77,11 @@ Globals.waypointInstance_assemblyRootPart_throttle = {} :: {[Instance]: {[BasePa
 
 local getVFXInfo
 local createZiplineRouteVisualizerVFX
+
+local isValidWaypoint
+local getWaypointAlpha
 local createZiplineRouteWaypointsVFX
+local setUpZiplineRouteWaypoints
 
 local canMovePart
 local isWaypointTouchThrottled
@@ -88,8 +93,6 @@ local traverseAlongZipline
 local traverseAlongZiplineStartingDelay
 local getTraverseWaypointOrder
 local traverseAlongZiplineWithDirection
-
-local getOrCreateZiplineConfigs
 
 local getControlPointConfig
 local getOrderedControlPoints
@@ -156,20 +159,45 @@ createZiplineRouteVisualizerVFX = function(container: Instance, ziplineRoute: Li
     return partsFolder, vfxInstances
 end
 
-createZiplineRouteWaypointsVFX = function(container: Instance, ziplineRoute: LinkedRoute)
+
+----- Waypoint funtions -----
+
+isValidWaypoint = function(waypointId: number, ziplineConfig: ZiplineConfig, numberOfWaypoints: number)
+    local isValid = true
+    if waypointId == 1 then
+        isValid = isValid and ziplineConfig.waypointConfig.create_start
+    elseif waypointId == numberOfWaypoints then
+        isValid = isValid and ziplineConfig.waypointConfig.create_stop
+    else
+        isValid = isValid and ziplineConfig.waypointConfig.create_middle
+    end
+    return isValid
+end
+
+getWaypointAlpha = function(waypoint: BasePart)
+    return tonumber(waypoint:GetAttribute(Constants.routeAlphAttributeName)) or 0
+end
+
+createZiplineRouteWaypointsVFX = function(container: Instance, ziplineConfig: ZiplineConfig, ziplineRoute: LinkedRoute)
     local vfxInfo = getVFXInfo(container)
     local templatePart = vfxInfo.WaypointPart
     local partsFolder
     local vfxInstances
+    local alphaRange_scalar = ziplineRoute:getAlphaRange_scalar()
+    local waypointConfig = ziplineConfig.waypointConfig
+    local startAlpha = 0
+    local deltaAlpha = if waypointConfig.create_middle then 1 else alphaRange_scalar
 
     partsFolder, vfxInstances = SegmentedRoute.RouteUtil.Visualizer.createParts_equalSteps(
         ziplineRoute, {templatePart = templatePart :: BasePart, colorRange = {templatePart.Color}},
-        nil, 0, 1
+        nil, startAlpha, deltaAlpha
     )
 
     -- Remove last (duplicated) waypoint
-    vfxInstances[#vfxInstances]:Destroy()
-    table.remove(vfxInstances)
+    if #vfxInstances >= 2 and vfxInstances[#vfxInstances - 1].Position:FuzzyEq(vfxInstances[#vfxInstances].Position) then
+        vfxInstances[#vfxInstances]:Destroy()
+        table.remove(vfxInstances)
+    end
 
     -- Ensure waypoint part properties
     for _, part in vfxInstances do
@@ -178,8 +206,50 @@ createZiplineRouteWaypointsVFX = function(container: Instance, ziplineRoute: Lin
         part.Transparency = tonumber(templatePart:GetAttribute(Constants.storedTransparencyAttributeName)) or 1
     end
 
+    -- Hide start & stop waypoints
+    if not waypointConfig.create_start then
+        vfxInstances[1].Transparency = 1
+    end
+    if not waypointConfig.create_stop then
+        vfxInstances[#vfxInstances].Transparency = 1
+    end
+
     -- Hide template part
     templatePart.Transparency = 1
+
+    return partsFolder, vfxInstances
+end
+
+setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: ZiplineConfig, ziplineRoute: LinkedRoute)
+    local partsFolder
+    local vfxInstances
+    local proximityPrompt
+
+    -- Create waypoints
+    partsFolder, vfxInstances = createZiplineRouteWaypointsVFX(container, ziplineConfig, ziplineRoute)
+
+    -- Set up proximity prompts
+    if ziplineConfig.waypointConfig.activate_proximityPrompt and RunService:IsClient() then
+        for i = 1, #vfxInstances do
+            if isValidWaypoint(i, ziplineConfig, #vfxInstances) then
+                proximityPrompt = ziplineConfig.waypointProximityPrompt:Clone()
+                proximityPrompt.Parent = vfxInstances[i]
+                proximityPrompt.Triggered:Connect(function(player: Player)
+                    -- Check valid
+                    local character = player.Character
+                    local part = character and character:FindFirstChild("HumanoidRootPart")
+                    if part and part:IsA("BasePart") then
+                        local rootPart = part.AssemblyRootPart
+                        local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
+                        local isValidPart = ziplineConfig.support_players and isPlayer
+                        if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
+                            onTouchedZipline(part, i, ziplineConfig, Globals.activeZiplineGroup[container])
+                        end
+                    end
+                end)
+            end
+        end
+    end
 
     return partsFolder, vfxInstances
 end
@@ -218,8 +288,8 @@ end
 
 ----- Zipline touched functions -----
 
-checkZiplineTouchedLoop = function(container: Instance, ziplineConfigs: ZiplineConfigs, ziplineGroup: ZiplineGroupInfo, isValidPart_function: (BasePart) -> boolean)
-    local waypointTouchRadius = ziplineConfigs.waypointTouchRadius
+checkZiplineTouchedLoop = function(container: Instance, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, isValidPart_function: (BasePart) -> boolean)
+    local waypointTouchRadius = ziplineConfig.waypointConfig.touch_radius
     local waypointQueryPart
     local waypointPosition
     local queriedParts
@@ -239,17 +309,21 @@ checkZiplineTouchedLoop = function(container: Instance, ziplineConfigs: ZiplineC
             local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
             local isValidPart = true
             isValidPart = isValidPart and isValidPart_function(part)
-            isValidPart = isValidPart and (ziplineConfigs.support_objects or isPlayer)
-            isValidPart = isValidPart and (ziplineConfigs.support_players or not isPlayer)
+            if isPlayer then
+                isValidPart = isValidPart and ziplineConfig.support_players and ziplineConfig.waypointConfig.activate_playerTouch
+            else
+                isValidPart = isValidPart and ziplineConfig.support_objects
+            end
+            isValidPart = isValidPart and isValidWaypoint(waypointId, ziplineConfig, #ziplineGroup.waypointInstances)
             if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
-                onTouchedZipline(part, waypointId, ziplineConfigs, ziplineGroup)
+                onTouchedZipline(part, waypointId, ziplineConfig, ziplineGroup)
             end
         end
     end
     waypointQueryPart:Destroy()
 end
 
-onTouchedZipline = function(part: BasePart, startWaypointId: number, ziplineConfigs: ZiplineConfigs, ziplineGroup: ZiplineGroupInfo)
+onTouchedZipline = function(part: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo)
     local assemblyRootPart = part.AssemblyRootPart
     local isValid
 
@@ -262,14 +336,14 @@ onTouchedZipline = function(part: BasePart, startWaypointId: number, ziplineConf
     if isValid then
         Globals.assemblyRootPart_inZipline[assemblyRootPart] = true
         task.defer(function()
-            traverseAlongZipline(assemblyRootPart, startWaypointId, ziplineConfigs, ziplineGroup)
+            traverseAlongZipline(assemblyRootPart, startWaypointId, ziplineConfig, ziplineGroup)
             task.wait(0.1)
             Globals.assemblyRootPart_inZipline[assemblyRootPart] = nil
         end)
     end
 end
 
-traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, ziplineConfigs: ZiplineConfigs, ziplineGroup: ZiplineGroupInfo)
+traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo)
     local waypointCount = #ziplineGroup.waypointInstances
     local isPositiveDirection
     local waypointPositiveDirection
@@ -280,7 +354,7 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
     elseif startWaypointId == waypointCount then
         isPositiveDirection = false
     else
-        local routeAlpha = startWaypointId - 1
+        local routeAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[startWaypointId])
         waypointPositiveDirection = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha + 0.001)
         waypointNegativeDirection = -ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha - 0.001)
         rootPartVelocityDirection = rootPart.AssemblyLinearVelocity.Unit
@@ -289,11 +363,11 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
         end
         isPositiveDirection = waypointPositiveDirection:Dot(rootPartVelocityDirection) >= waypointNegativeDirection:Dot(rootPartVelocityDirection)
     end
-    traverseAlongZiplineStartingDelay(rootPart, startWaypointId, ziplineConfigs, ziplineGroup)
-    traverseAlongZiplineWithDirection(rootPart, startWaypointId, ziplineConfigs, ziplineGroup, isPositiveDirection)
+    traverseAlongZiplineStartingDelay(rootPart, startWaypointId, ziplineConfig, ziplineGroup)
+    traverseAlongZiplineWithDirection(rootPart, startWaypointId, ziplineConfig, ziplineGroup, isPositiveDirection)
 end
 
-traverseAlongZiplineStartingDelay = function(rootPart: BasePart, startWaypointId: number, ziplineConfigs: ZiplineConfigs, ziplineGroup: ZiplineGroupInfo)
+traverseAlongZiplineStartingDelay = function(rootPart: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo)
     local assemblyRootPart = rootPart.AssemblyRootPart
     local isPlayer
     local startDelay
@@ -304,9 +378,9 @@ traverseAlongZiplineStartingDelay = function(rootPart: BasePart, startWaypointId
     -- Get start delay
     isPlayer = Players:GetPlayerFromCharacter(assemblyRootPart and assemblyRootPart.Parent)
     if isPlayer then
-        startDelay = ziplineConfigs.startDelay_players
+        startDelay = ziplineConfig.startDelay_players
     else
-        startDelay = ziplineConfigs.startDelay_objects
+        startDelay = ziplineConfig.startDelay_objects
     end
 
     -- Idle at start position
@@ -334,8 +408,8 @@ getTraverseWaypointOrder = function(ziplineGroup: ZiplineGroupInfo, startWaypoin
     return result
 end
 
-traverseAlongZiplineWithDirection = function(rootPart: BasePart, startWaypointId: number, ziplineConfigs: ZiplineConfigs, ziplineGroup: ZiplineGroupInfo, isPositiveDirection: boolean)
-    local traverseSpeed = ziplineConfigs.traverseSpeed
+traverseAlongZiplineWithDirection = function(rootPart: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, isPositiveDirection: boolean)
+    local traverseSpeed = ziplineConfig.traverseSpeed
     local reparameterization_function
     local traverseWaypointOrder
     local waypointId
@@ -365,9 +439,9 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startWaypointId
         setWaypointTouchThrottle(ziplineGroup, waypointId, rootPart)
 
         -- Calculate segment distances
-        routeAlpha = waypointId - 1
+        routeAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[waypointId])
         segmentStartDistance = reparameterization_function(routeAlpha, false)
-        segmentStopDistance = reparameterization_function(nextWaypointId - 1, false)
+        segmentStopDistance = reparameterization_function(getWaypointAlpha(ziplineGroup.waypointInstances[nextWaypointId]), false)
         segmentLength = math.abs(segmentStopDistance - segmentStartDistance)
 
         -- Calculate traversal time
@@ -401,23 +475,6 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startWaypointId
     if canMovePart(rootPart) and rootPart == rootPart.AssemblyRootPart then
         setWaypointTouchThrottle(ziplineGroup, nextWaypointId, rootPart)
     end
-end
-
-
------ Zipline config functions -----
-
-getOrCreateZiplineConfigs = function(container: Instance)
-    local ziplineConfigs
-    local containerChildConfigs = container:FindFirstChild(Constants.ziplineConfigsName)
-    if containerChildConfigs and containerChildConfigs:IsA("Configuration") then
-        ziplineConfigs = containerChildConfigs
-    else
-        ziplineConfigs = Instance.new("Configuration")
-        table.insert(Globals.activeZiplineGroup[container].extraInstances, ziplineConfigs)
-        ziplineConfigs.Name = Constants.ziplineConfigsName
-        ziplineConfigs.Parent = container
-    end
-    return ziplineConfigs
 end
 
 
@@ -493,8 +550,7 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     local orderedSegments
     local ziplineRoute
     local ziplineGroupInfo
-    local ziplineConfigsInstance
-    local ziplineConfigs
+    local ziplineConfig
     local _: any
 
     -- Clean up & initialize
@@ -505,9 +561,8 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     ziplineGroupInfo.connections = {}
     Globals.activeZiplineGroup[container] = ziplineGroupInfo
 
-    -- Get zipline configs
-    ziplineConfigsInstance = getOrCreateZiplineConfigs(container)
-    ziplineConfigs = ZiplineConfigs.getConfigs(ziplineConfigsInstance)
+    -- Get zipline config
+    ziplineConfig = ZiplineConfigs.getConfig(container:FindFirstChild(Constants.ziplineConfigName) :: Configuration)
 
     -- Create zipline route
     orderedControlPoints = getOrderedControlPoints(container)
@@ -518,16 +573,16 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
         ziplineRoute:addSegment(segment)
     end
 
-    -- Create zipline waypoints
-    _, ziplineGroupInfo.waypointInstances = createZiplineRouteWaypointsVFX(container, ziplineRoute)
-
-    -- Create zipline VFX
+    -- Create zipline visualizer VFX
     if willCreateVFX then
         ziplineGroupInfo.vfxFolder, _ = createZiplineRouteVisualizerVFX(container, ziplineRoute)
     end
 
+    -- Create zipline waypoints
+    _, ziplineGroupInfo.waypointInstances = setUpZiplineRouteWaypoints(container, ziplineConfig, ziplineRoute)
+
     -- Hide control points
-    if ziplineConfigs.hide_controlPoints then
+    if ziplineConfig.hide_controlPoints then
         for _, point in orderedControlPoints do
             point.Transparency = 1
         end
@@ -535,7 +590,7 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
 
     -- Set up zipline connection
     table.insert(ziplineGroupInfo.connections, RunService.Heartbeat:Connect(function()
-        checkZiplineTouchedLoop(container, ziplineConfigs, ziplineGroupInfo, isValidPart_function)
+        checkZiplineTouchedLoop(container, ziplineConfig, ziplineGroupInfo, isValidPart_function)
     end))
 end
 
