@@ -5,9 +5,11 @@
 - More about zipline directions?
 - Individual waypoint configs
 
-## [v0.0.2] Template part transparency fix | 2025/11/12 (2)
+## [v0.0.2] Template part transparency fix + visualize reparameterized route | 2025/11/12 (2)
 
 Fixed unexpected template part transparency values when there's multiple `ZiplineGroup`.
+
+Changed the visualized route from equal alpha values to equal (reparameterized) distance steps.
 
 Added attributes documentation to `README.md`.
 
