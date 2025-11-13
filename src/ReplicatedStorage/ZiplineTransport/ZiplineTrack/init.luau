@@ -58,6 +58,9 @@ Constants.defaultVFXInfo = {
 } :: VFXInfo
 Constants.waypointTouchThrottle = 0.5
 
+Constants.storedTransparencyAttributeName = "StoredTransparency"
+
+table.freeze(Constants.defaultVFXInfo)
 table.freeze(Constants)
 
 
@@ -97,10 +100,11 @@ local getOrderedSegments
 
 getVFXInfo = function(container: Instance): VFXInfo
     local VFXInfoFolder
-    local result = Constants.defaultVFXInfo
+    local result = table.clone(Constants.defaultVFXInfo)
     local VFXPart
     local WaypointPart
 
+    -- Get template parts
     VFXInfoFolder = container:FindFirstChild(Constants.VFXInfoFolderName)
     if VFXInfoFolder then
         VFXPart = VFXInfoFolder:FindFirstChild("VFXPart")
@@ -115,6 +119,14 @@ getVFXInfo = function(container: Instance): VFXInfo
             WaypointPart.CanCollide = false
             WaypointPart.Anchored = true
         end
+    end
+
+    -- Store template part transparency
+    if not result.VFXPart:GetAttribute(Constants.storedTransparencyAttributeName) then
+        result.VFXPart:SetAttribute(Constants.storedTransparencyAttributeName, result.VFXPart.Transparency)
+    end
+    if not result.WaypointPart:GetAttribute(Constants.storedTransparencyAttributeName) then
+        result.WaypointPart:SetAttribute(Constants.storedTransparencyAttributeName, result.WaypointPart.Transparency)
     end
 
     return result
@@ -135,7 +147,7 @@ createZiplineRouteVisualizerVFX = function(container: Instance, ziplineRoute: Li
     for _, part in vfxInstances do
         part.CanCollide = false
         part.CanTouch = templatePart.CanTouch
-        part.Transparency = templatePart.Transparency
+        part.Transparency = tonumber(templatePart:GetAttribute(Constants.storedTransparencyAttributeName)) or 1
     end
 
     -- Hide template part
@@ -163,7 +175,7 @@ createZiplineRouteWaypointsVFX = function(container: Instance, ziplineRoute: Lin
     for _, part in vfxInstances do
         part.CanCollide = false
         part.CanTouch = templatePart.CanTouch
-        part.Transparency = templatePart.Transparency
+        part.Transparency = tonumber(templatePart:GetAttribute(Constants.storedTransparencyAttributeName)) or 1
     end
 
     -- Hide template part

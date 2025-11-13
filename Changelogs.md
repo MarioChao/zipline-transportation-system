@@ -5,7 +5,13 @@
 - More about zipline directions?
 - Individual waypoint configs
 
-## [v0.0.1] Curved ziplines + moving platform physics + more configs | 2025/11/12
+## [v0.0.2] Template part transparency fix | 2025/11/12 (2)
+
+Fixed unexpected template part transparency values when there's multiple `ZiplineGroup`.
+
+Added attributes documentation to `README.md`.
+
+## [v0.0.1] Curved ziplines + moving platform physics + more configs | 2025/11/12 (1)
 
 "Waypoints" vs "Control Points":
 - The points used to create a `SegmentedRoute` are referred to as "control points".
