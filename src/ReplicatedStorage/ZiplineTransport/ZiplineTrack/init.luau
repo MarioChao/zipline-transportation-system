@@ -133,15 +133,14 @@ getVFXInfo = function(container: Instance): VFXInfo
 end
 
 createZiplineRouteVisualizerVFX = function(container: Instance, ziplineRoute: LinkedRoute)
-    local _
     local vfxInfo = getVFXInfo(container)
     local templatePart = vfxInfo.VFXPart
     local partsFolder
     local vfxInstances
 
-    _, partsFolder, vfxInstances = SegmentedRoute.RouteUtil.createParts_connected_equalDistanceSteps(
+    partsFolder, vfxInstances = SegmentedRoute.RouteUtil.Visualizer.createParts_connected_equalSteps(
         ziplineRoute, {templatePart = templatePart :: BasePart, colorRange = {templatePart.Color}},
-        0.5
+        0, 0.01
     )
 
     -- Make sure visualized parts are not collidable
