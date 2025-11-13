@@ -2,17 +2,33 @@
     "className": "Folder",
     "children": [
         {
-            "className": "Beam",
-            "name": "VFXBeam",
+            "className": "Part",
+            "name": "VFXPart",
             "properties": {
-                "LightEmission": 0.5,
-                "FaceCamera": true,
-                "Width0": 0.2,
-                "Width1": 0.2
-            },
-            "attributes": {
-                "Rojo_Target_Attachment0": "VFX Attachment0",
-                "Rojo_Target_Attachment1": "VFX Attachment1"
+                "Color": [0.5, 0.7, 0.9],
+                "Material": "Neon",
+                "Transparency": 0,
+                "Size": [2, 0.1, 0.1],
+                "Position": [-17, 3, -10],
+                "CanCollide": false,
+                "CanTouch": false,
+                "Anchored": true,
+                "Shape": "Cylinder"
+            }
+        },
+        {
+            "className": "Part",
+            "name": "WaypointPart",
+            "properties": {
+                "Color": [0, 0.666667, 0.666667],
+                "Material": "Neon",
+                "Transparency": 0.6,
+                "Size": [2, 2, 2],
+                "Position": [-14, 3, -10],
+                "CanCollide": false,
+                "CanTouch": false,
+                "Anchored": true,
+                "Shape": "Ball"
             }
         }
     ]

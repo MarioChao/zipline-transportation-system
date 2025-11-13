@@ -4,13 +4,20 @@
     "$className": "DataModel",
 
     "ReplicatedStorage": {
-      "$path": "src/ReplicatedStorage",
-      "$ignoreUnknownInstances": true
+      "Modules": {
+        "$path": "Packages",
+        "$ignoreUnknownInstances": true,
+
+        "ZiplineTransport": {
+          "$path": "src/ReplicatedStorage/ZiplineTransport"
+        }
+      }
     },
 
     "Workspace": {
       "$path": "src/Workspace",
       "$ignoreUnknownInstances": true
     }
-  }
+  },
+  "globIgnorePaths": ["**/wally.toml"]
 }

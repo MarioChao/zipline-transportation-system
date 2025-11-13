@@ -1,0 +1,14 @@
+{
+    "className": "Part",
+    "properties": {
+       "Color": [0, 0.666667, 0.666667],
+        "Material": "Neon",
+        "Transparency": 0.6,
+        "Size": [2, 2, 2],
+        "Position": [-14, 3, -10],
+        "CanCollide": false,
+        "CanTouch": false,
+        "Anchored": true,
+        "Shape": "Ball"
+    }
+}

@@ -1,7 +1,15 @@
 # Project place file
-/zipline-transport-system.rbxlx
+/zipline-transportation-system.rbxlx
+/zipline-transportation-system.rbxl
 
 # Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
 sourcemap.json
+
+# DS_Store
+.DS_Store
+
+# Wally
+/Packages
+wally.lock

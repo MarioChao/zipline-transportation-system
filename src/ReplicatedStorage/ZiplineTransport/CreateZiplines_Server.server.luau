@@ -8,7 +8,7 @@ local Players = game:GetService("Players")
 
 ---------- Imports ----------
 
-local ZiplineSetup = require(script.Parent.ZiplineSetup)
+local ZiplineTrack = require(script.Parent.ZiplineTrack)
 
 
 ---------- Constants ----------
@@ -34,11 +34,11 @@ local setUpTagged
 local cleanUpTagged
 
 setUpTagged = function(taggedInstance: Instance)
-    ZiplineSetup.setUpZiplineGroup(taggedInstance, isValidPart_function, true)
+    ZiplineTrack.setUpZiplineGroup(taggedInstance, isValidPart_function, true)
 end
 
 cleanUpTagged = function(taggedInstance: Instance)
-    ZiplineSetup.cleanUpZiplineGroup(taggedInstance)
+    ZiplineTrack.cleanUpZiplineGroup(taggedInstance)
 end
 
 

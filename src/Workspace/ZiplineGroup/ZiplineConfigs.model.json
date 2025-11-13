@@ -1,9 +1,12 @@
 {
     "className": "Configuration",
     "attributes": {
+        "Hide_ControlPoints": true,
         "StartDelay_Objects": 0,
         "StartDelay_Players": 0.5,
-        "TraverseSpeed": 32,
+        "Support_Objects": true,
+        "Support_Players": true,
+        "TraverseSpeed": 16,
         "WaypointTouchRadius": 1
     }
 }
