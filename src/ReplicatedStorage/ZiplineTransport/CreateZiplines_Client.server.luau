@@ -1,6 +1,6 @@
 --!strict
 
----------- Servies ----------
+---------- Services ----------
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -17,10 +17,18 @@ local Constants = {}
 Constants.ziplineGroupTag = "ZiplineGroup"
 
 
----------- Pie hiking tool functions ----------
+---------- Local functions ----------
 
 local getPieModel
 local isPieAClientPie
+
+local isValidPart_function
+
+local setUpTagged
+local cleanUpTagged
+
+
+----- Pie hiking tool -----
 
 getPieModel = function(instance: Instance?): Model?
 	-- Find a pie model by looking through the parent instances
@@ -48,9 +56,7 @@ isPieAClientPie = function(pieModel: Model?): boolean
 end
 
 
----------- Valid part function ----------
-
-local isValidPart_function
+----- Valid part -----
 
 isValidPart_function = function(part: BasePart)
     local isLocalPlayer = Players:GetPlayerFromCharacter(part.Parent) == Players.LocalPlayer
@@ -59,10 +65,7 @@ isValidPart_function = function(part: BasePart)
 end
 
 
----------- Tag functions ----------
-
-local setUpTagged
-local cleanUpTagged
+----- Tag -----
 
 setUpTagged = function(taggedInstance: Instance)
     ZiplineTrack.setUpZiplineGroup(taggedInstance, isValidPart_function, false)
@@ -73,9 +76,9 @@ cleanUpTagged = function(taggedInstance: Instance)
 end
 
 
----------- Main function ----------
+----- Main -----
 
-local function onServerStart()
+local function main()
     CollectionService:GetInstanceAddedSignal(Constants.ziplineGroupTag):Connect(setUpTagged)
     CollectionService:GetInstanceRemovedSignal(Constants.ziplineGroupTag):Connect(cleanUpTagged)
     for _, tagged in CollectionService:GetTagged(Constants.ziplineGroupTag) do
@@ -84,6 +87,6 @@ local function onServerStart()
 end
 
 
----------- Calling functions ----------
+---------- Calling function ----------
 
-onServerStart()
+main()

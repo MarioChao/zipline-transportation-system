@@ -11,6 +11,7 @@
                 "Size": [2, 0.1, 0.1],
                 "Position": [-17, 3, -10],
                 "CanCollide": false,
+                "CanQuery": false,
                 "CanTouch": false,
                 "Anchored": true,
                 "Shape": "Cylinder"

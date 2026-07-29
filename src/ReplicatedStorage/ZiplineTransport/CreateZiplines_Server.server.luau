@@ -1,6 +1,6 @@
 --!strict
 
----------- Servies ----------
+---------- Services ----------
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -17,9 +17,15 @@ local Constants = {}
 Constants.ziplineGroupTag = "ZiplineGroup"
 
 
----------- Valid part function ----------
+---------- Local functions ----------
 
 local isValidPart_function
+
+local setUpTagged
+local cleanUpTagged
+
+
+----- Valid part -----
 
 isValidPart_function = function(part: BasePart)
     local assemblyRootPart = part.AssemblyRootPart
@@ -28,10 +34,7 @@ isValidPart_function = function(part: BasePart)
 end
 
 
----------- Tag functions ----------
-
-local setUpTagged
-local cleanUpTagged
+----- Tag -----
 
 setUpTagged = function(taggedInstance: Instance)
     ZiplineTrack.setUpZiplineGroup(taggedInstance, isValidPart_function, true)
@@ -42,9 +45,9 @@ cleanUpTagged = function(taggedInstance: Instance)
 end
 
 
----------- Main function ----------
+---------- Main ----------
 
-local function onServerStart()
+local function main()
     CollectionService:GetInstanceAddedSignal(Constants.ziplineGroupTag):Connect(setUpTagged)
     CollectionService:GetInstanceRemovedSignal(Constants.ziplineGroupTag):Connect(cleanUpTagged)
     for _, tagged in CollectionService:GetTagged(Constants.ziplineGroupTag) do
@@ -53,6 +56,6 @@ local function onServerStart()
 end
 
 
----------- Calling functions ----------
+---------- Calling function ----------
 
-onServerStart()
+main()

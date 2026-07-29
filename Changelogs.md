@@ -4,6 +4,12 @@
 
 - Endpoint reverse direction.
 
+## [v0.1.0] Client pie attributes + Fixed disable collision | 2026/07/29
+
+Added `StartDelay_ClientPies` and `Support_ClientPies` attributes.
+
+Hidden parts (control points & template parts) now have collision properties (`CanCollide`, `CanQuery`, `CanTouch`, `AudioCanCollide`) disabled as well.
+
 ## [v0.0.3] Waypoint configurations | 2025/11/13
 
 New configuration `WaypointConfig`:

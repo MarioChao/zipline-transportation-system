@@ -18,10 +18,12 @@ ZiplineConfig:
 | Config | Type | Description | Default |
 |:---:|:---:|:---|:---:|
 | Hide_ControlPoints | boolean | Whether initial control points are hidden. | true |
-| StartDelay_Objects | number | Delay before non-player objects start traversing the Zipline. | 0 |
+| StartDelay_ClientPies | number | Delay before client pies start traversing the Zipline. | 0 |
 | StartDelay_Players | number | Delay before players start traversing the Zipline. | 0.5 |
-| Support_Objects | boolean | Whether non-player objects will be transported. | true |
+| StartDelay_Objects | number | Delay before other objects start traversing the Zipline. | 0 |
+| Support_ClientPies | boolean | Whether client pies will be transported. | true |
 | Support_Players | boolean | Whether players will be transported. | true |
+| Support_Objects | boolean | Whether other objects will be transported. | true |
 | TraverseSpeed | number | Speed of traversing the Zipline. | 16 |
 
 WaypointConfig:

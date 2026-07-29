@@ -2,8 +2,10 @@
     "className": "Configuration",
     "attributes": {
         "Hide_ControlPoints": true,
+        "StartDelay_ClientPies": 0,
         "StartDelay_Objects": 0,
         "StartDelay_Players": 0.5,
+        "Support_ClientPies": true,
         "Support_Objects": true,
         "Support_Players": true,
         "TraverseSpeed": 16

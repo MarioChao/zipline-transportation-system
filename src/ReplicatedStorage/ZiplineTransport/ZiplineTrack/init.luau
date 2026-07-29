@@ -14,8 +14,8 @@ local RunService = game:GetService("RunService")
 local ZiplineConfigs = require(script.ZiplineConfigs)
 
 local Packages = script.Parent.Parent
-local SpatialQuery = require(Packages.SpatialQuery)
-local SegmentedRoute = require(Packages.SegmentedRoute)
+local SpatialQuery = require(Packages:WaitForChild("SpatialQuery"))
+local SegmentedRoute = require(Packages:WaitForChild("SegmentedRoute"))
 local LinkedRoute = SegmentedRoute.LinkedRoute
 local _SegmentedRoute = require(Packages._Index["mariochao_segmented-route@0.1.2"]["segmented-route"])
 
@@ -75,6 +75,9 @@ Globals.waypointInstance_assemblyRootPart_throttle = {} :: {[Instance]: {[BasePa
 
 ---------- Local functions ----------
 
+local getPieModel
+local isPieAClientPie
+
 local getVFXInfo
 local createZiplineRouteVisualizerVFX
 
@@ -99,7 +102,35 @@ local getOrderedControlPoints
 local getOrderedSegments
 
 
------ Ziplin effect functions -----
+----- Pie hiking tool -----
+
+getPieModel = function(instance: Instance?): Model?
+	-- Find a pie model by looking through the parent instances
+	local loopCount = 0
+	while instance and loopCount < 20 do
+		-- Check if instance is a pie model
+		if instance:IsA("Model") and instance.Name == "PieModel" and instance:FindFirstChild("MainPart") then
+			return instance
+		end
+
+		-- Update variables
+		local parent: Instance? = instance:FindFirstAncestorWhichIsA("Model")
+		instance = parent
+		loopCount += 1
+	end
+	return nil
+end
+
+isPieAClientPie = function(pieModel: Model?): boolean
+	local pieMainPart = pieModel and pieModel:FindFirstChild("MainPart") :: Part
+	local pieUniqueId = pieModel and pieModel:FindFirstChild("UniquePieId") :: StringValue
+	local pieTag = pieUniqueId and pieUniqueId.Value
+	local _isClientPie = pieMainPart and pieMainPart:IsA("Part") and pieTag and typeof(pieTag) == "string"
+	return _isClientPie == true
+end
+
+
+----- Zipline effect functions -----
 
 getVFXInfo = function(container: Instance): VFXInfo
     local VFXInfoFolder
@@ -155,6 +186,10 @@ createZiplineRouteVisualizerVFX = function(container: Instance, ziplineRoute: Li
 
     -- Hide template part
     templatePart.Transparency = 1
+    templatePart.CanCollide = false
+    templatePart.CanQuery = false
+    templatePart.CanTouch = false
+    templatePart.AudioCanCollide = false
 
     return partsFolder, vfxInstances
 end
@@ -216,6 +251,10 @@ createZiplineRouteWaypointsVFX = function(container: Instance, ziplineConfig: Zi
 
     -- Hide template part
     templatePart.Transparency = 1
+    templatePart.CanCollide = false
+    templatePart.CanQuery = false
+    templatePart.CanTouch = false
+    templatePart.AudioCanCollide = false
 
     return partsFolder, vfxInstances
 end
@@ -307,10 +346,13 @@ checkZiplineTouchedLoop = function(container: Instance, ziplineConfig: ZiplineCo
             -- Check valid
             local rootPart = part.AssemblyRootPart
             local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
+            local isClientPie = isPieAClientPie(getPieModel(rootPart))
             local isValidPart = true
             isValidPart = isValidPart and isValidPart_function(part)
             if isPlayer then
                 isValidPart = isValidPart and ziplineConfig.support_players and ziplineConfig.waypointConfig.activate_playerTouch
+            elseif isClientPie then
+                isValidPart = isValidPart and ziplineConfig.support_clientPies
             else
                 isValidPart = isValidPart and ziplineConfig.support_objects
             end
@@ -370,6 +412,7 @@ end
 traverseAlongZiplineStartingDelay = function(rootPart: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo)
     local assemblyRootPart = rootPart.AssemblyRootPart
     local isPlayer
+    local isClientPie
     local startDelay
     local startPosition
     local delayStartTime
@@ -377,8 +420,11 @@ traverseAlongZiplineStartingDelay = function(rootPart: BasePart, startWaypointId
 
     -- Get start delay
     isPlayer = Players:GetPlayerFromCharacter(assemblyRootPart and assemblyRootPart.Parent)
+    isClientPie = isPieAClientPie(getPieModel(assemblyRootPart))
     if isPlayer then
         startDelay = ziplineConfig.startDelay_players
+    elseif isClientPie then
+        startDelay = ziplineConfig.startDelay_clientPies
     else
         startDelay = ziplineConfig.startDelay_objects
     end
@@ -424,6 +470,8 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startWaypointId
     local velocitySign
     local waypointTraverseVelocity
     local traversePosition
+    local previousTraversePosition
+    local previousTime
 
     -- Get reparameterized route (assume static route)
     reparameterization_function = SegmentedRoute.RouteUtil.Reparam.getRoute_reparameterization_function(ziplineGroup.route)
@@ -455,12 +503,24 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startWaypointId
             rootPart:PivotTo(CFrame.new(traversePosition) * rootPart.CFrame.Rotation)
 
             -- Calculate traverse velocity vector
-            waypointTraverseVelocity = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha) * traverseSpeed
+            local direction = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha)
+            waypointTraverseVelocity = direction * traverseSpeed
             waypointTraverseVelocity *= velocitySign
+
+            -- Alternatively, traverse velocity based on position change
+            -- local timeChange = if previousTime then time() - previousTime else nil
+            -- local positionChange = if previousTraversePosition then traversePosition - previousTraversePosition else Vector3.zero
+            -- waypointTraverseVelocity = if timeChange then positionChange / timeChange else Vector3.zero
 
             -- Anchor part to create movement platform effect
             rootPart.Anchored = true
             rootPart.AssemblyLinearVelocity = waypointTraverseVelocity
+
+            -- Update data
+            previousTraversePosition = traversePosition
+            previousTime = time()
+
+            -- Wait & unanchor
             RunService.Heartbeat:Wait()
             rootPart.Anchored = false
         end
@@ -585,6 +645,10 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     if ziplineConfig.hide_controlPoints then
         for _, point in orderedControlPoints do
             point.Transparency = 1
+            point.CanCollide = false
+            point.CanQuery = false
+            point.CanTouch = false
+            point.AudioCanCollide = false
         end
     end
 

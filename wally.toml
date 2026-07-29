@@ -6,4 +6,4 @@ realm = "shared"
 
 [dependencies]
 SegmentedRoute = "mariochao/segmented-route@^0.1.2"
-SpatialQuery = "anytrio/spatial-query@^1.0.1"
+SpatialQuery = "anytrio/spatial-query@^1.1.0"
