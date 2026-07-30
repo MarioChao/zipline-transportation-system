@@ -59,7 +59,7 @@ Constants.defaultVFXInfo = {
 Constants.waypointTouchThrottle = 0.5
 
 Constants.storedTransparencyAttributeName = "StoredTransparency"
-Constants.routeAlphAttributeName = "RouteAlpha"
+Constants.routeAlphaAttributeName = "RouteAlpha"
 
 table.freeze(Constants.defaultVFXInfo)
 table.freeze(Constants)
@@ -70,7 +70,8 @@ table.freeze(Constants)
 local Globals = {}
 Globals.activeZiplineGroup = {} :: {[Instance]: ZiplineGroupInfo}
 Globals.assemblyRootPart_inZipline = {} :: {[BasePart]: boolean}
-Globals.waypointInstance_assemblyRootPart_throttle = {} :: {[Instance]: {[BasePart]: boolean}}
+Globals.waypointInstance_assemblyRootPart_throttle = {} :: {[Instance]: {[BasePart]: true?}}
+Globals.waypointInstance_assemblyRootPart_throttleThread = {} :: {[Instance]: {[BasePart]: thread?}}
 
 
 ---------- Local functions ----------
@@ -82,6 +83,7 @@ local getVFXInfo
 local createZiplineRouteVisualizerVFX
 
 local isValidWaypoint
+local isLoopedStartWaypoint
 local getWaypointAlpha
 local createZiplineRouteWaypointsVFX
 local setUpZiplineRouteWaypoints
@@ -93,8 +95,8 @@ local setWaypointTouchThrottle
 local checkZiplineTouchedLoop
 local onTouchedZipline
 local traverseAlongZipline
-local traverseAlongZiplineStartingDelay
-local getTraverseWaypointOrder
+local runTraverseZiplineStartDelay
+
 local traverseAlongZiplineWithDirection
 
 local getControlPointConfig
@@ -199,18 +201,27 @@ end
 
 isValidWaypoint = function(waypointId: number, ziplineConfig: ZiplineConfig, numberOfWaypoints: number)
     local isValid = true
-    if waypointId == 1 then
-        isValid = isValid and ziplineConfig.waypointConfig.create_start
-    elseif waypointId == numberOfWaypoints then
-        isValid = isValid and ziplineConfig.waypointConfig.create_stop
+    if waypointId == 1 or waypointId == numberOfWaypoints then
+        if ziplineConfig.isLooped then
+            isValid = isValid and (ziplineConfig.waypointConfig.create_start or ziplineConfig.waypointConfig.create_stop)
+            isValid = isValid and waypointId == 1
+        elseif waypointId == 1 then
+            isValid = isValid and ziplineConfig.waypointConfig.create_start
+        elseif waypointId == numberOfWaypoints then
+            isValid = isValid and ziplineConfig.waypointConfig.create_stop
+        end
     else
         isValid = isValid and ziplineConfig.waypointConfig.create_middle
     end
     return isValid
 end
 
+isLoopedStartWaypoint = function(waypointId: number, ziplineConfig: ZiplineConfig)
+    return waypointId == 1 and ziplineConfig.isLooped
+end
+
 getWaypointAlpha = function(waypoint: BasePart)
-    return tonumber(waypoint:GetAttribute(Constants.routeAlphAttributeName)) or 0
+    return tonumber(waypoint:GetAttribute(Constants.routeAlphaAttributeName)) or 0
 end
 
 createZiplineRouteWaypointsVFX = function(container: Instance, ziplineConfig: ZiplineConfig, ziplineRoute: LinkedRoute)
@@ -242,11 +253,26 @@ createZiplineRouteWaypointsVFX = function(container: Instance, ziplineConfig: Zi
     end
 
     -- Hide start & stop waypoints
-    if not waypointConfig.create_start then
-        vfxInstances[1].Transparency = 1
+    --  We don't remove them because they are still used for traversal
+    local keepStart = waypointConfig.create_start
+    keepStart = keepStart or (ziplineConfig.isLooped and (waypointConfig.create_start or waypointConfig.create_stop))
+    local keepStop = waypointConfig.create_stop
+    keepStop = keepStop and not ziplineConfig.isLooped
+    if not keepStart then
+        local part = vfxInstances[1]
+        part.Transparency = 1
+        part.CanCollide = false
+        part.CanQuery = false
+        part.CanTouch = false
+        part.AudioCanCollide = false
     end
-    if not waypointConfig.create_stop then
-        vfxInstances[#vfxInstances].Transparency = 1
+    if not keepStop then
+        local part = vfxInstances[#vfxInstances]
+        part.Transparency = 1
+        part.CanCollide = false
+        part.CanQuery = false
+        part.CanTouch = false
+        part.AudioCanCollide = false
     end
 
     -- Hide template part
@@ -313,13 +339,24 @@ end
 setWaypointTouchThrottle = function(ziplineGroup: ZiplineGroupInfo, waypointId: number, part: BasePart)
     local waypointInstance = ziplineGroup.waypointInstances[waypointId]
     local assemblyRootPart = part.AssemblyRootPart
-    if assemblyRootPart then
+    if waypointInstance and assemblyRootPart then
+        -- Create default table
         if not Globals.waypointInstance_assemblyRootPart_throttle[waypointInstance] then
             Globals.waypointInstance_assemblyRootPart_throttle[waypointInstance] = {}
         end
+        if not Globals.waypointInstance_assemblyRootPart_throttleThread[waypointInstance] then
+            Globals.waypointInstance_assemblyRootPart_throttleThread[waypointInstance] = {}
+        end
+
+        -- Throttle
+        local existingThread = Globals.waypointInstance_assemblyRootPart_throttleThread[waypointInstance][assemblyRootPart]
+        if existingThread then
+            task.cancel(existingThread)
+        end
         Globals.waypointInstance_assemblyRootPart_throttle[waypointInstance][assemblyRootPart] = true
-        task.delay(Constants.waypointTouchThrottle, function()
+        Globals.waypointInstance_assemblyRootPart_throttleThread[waypointInstance][assemblyRootPart] = task.delay(Constants.waypointTouchThrottle, function()
             Globals.waypointInstance_assemblyRootPart_throttle[waypointInstance][assemblyRootPart] = nil
+            Globals.waypointInstance_assemblyRootPart_throttleThread[waypointInstance][assemblyRootPart] = nil
         end)
     end
 end
@@ -379,7 +416,7 @@ onTouchedZipline = function(part: BasePart, startWaypointId: number, ziplineConf
         Globals.assemblyRootPart_inZipline[assemblyRootPart] = true
         task.defer(function()
             traverseAlongZipline(assemblyRootPart, startWaypointId, ziplineConfig, ziplineGroup)
-            task.wait(0.1)
+            task.wait()
             Globals.assemblyRootPart_inZipline[assemblyRootPart] = nil
         end)
     end
@@ -391,6 +428,27 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
     local waypointPositiveDirection
     local waypointNegativeDirection
     local rootPartVelocityDirection
+
+    -- Check looped endpoint
+    if isLoopedStartWaypoint(startWaypointId, ziplineConfig) then
+        local routeAlphaRange = ziplineGroup.route:getAlphaRange()
+        waypointPositiveDirection = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlphaRange.Min)
+        waypointNegativeDirection = -ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlphaRange.Max)
+        rootPartVelocityDirection = rootPart.AssemblyLinearVelocity.Unit
+
+        -- Check zero (unit of zero velocity is (nan, nan, nan))
+        if rootPartVelocityDirection ~= rootPartVelocityDirection then
+            rootPartVelocityDirection = Vector3.new(0, -1, 0)
+        end
+
+        -- Reassign start waypoint
+        isPositiveDirection = waypointPositiveDirection:Dot(rootPartVelocityDirection) >= waypointNegativeDirection:Dot(rootPartVelocityDirection)
+        if not isPositiveDirection then
+            startWaypointId = waypointCount
+        end
+    end
+
+    -- Get direction
     if startWaypointId == 1 then
         isPositiveDirection = true
     elseif startWaypointId == waypointCount then
@@ -405,11 +463,14 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
         end
         isPositiveDirection = waypointPositiveDirection:Dot(rootPartVelocityDirection) >= waypointNegativeDirection:Dot(rootPartVelocityDirection)
     end
-    traverseAlongZiplineStartingDelay(rootPart, startWaypointId, ziplineConfig, ziplineGroup)
-    traverseAlongZiplineWithDirection(rootPart, startWaypointId, ziplineConfig, ziplineGroup, isPositiveDirection)
+
+    -- Traverse
+    local startAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[startWaypointId])
+    runTraverseZiplineStartDelay(rootPart, startAlpha, ziplineConfig, ziplineGroup)
+    traverseAlongZiplineWithDirection(rootPart, startAlpha, ziplineConfig, ziplineGroup, isPositiveDirection)
 end
 
-traverseAlongZiplineStartingDelay = function(rootPart: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo)
+runTraverseZiplineStartDelay = function(rootPart: BasePart, startAlpha: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo)
     local assemblyRootPart = rootPart.AssemblyRootPart
     local isPlayer
     local isClientPie
@@ -430,7 +491,7 @@ traverseAlongZiplineStartingDelay = function(rootPart: BasePart, startWaypointId
     end
 
     -- Idle at start position
-    startPosition = ziplineGroup.waypointInstances[startWaypointId].Position
+    startPosition = ziplineGroup.route:getPositionAtAlpha(startAlpha)
     delayStartTime = time()
     delayStopTime = delayStartTime + startDelay
     while time() < delayStopTime and canMovePart(rootPart) and rootPart == rootPart.AssemblyRootPart do
@@ -440,100 +501,85 @@ traverseAlongZiplineStartingDelay = function(rootPart: BasePart, startWaypointId
     end
 end
 
-getTraverseWaypointOrder = function(ziplineGroup: ZiplineGroupInfo, startWaypointId: number, isPositiveDirection: boolean)
-    local result = {}
-    if isPositiveDirection then
-        for id = startWaypointId, #ziplineGroup.waypointInstances do
-            table.insert(result, id)
-        end
-    else
-        for id = startWaypointId, 1, -1 do
-            table.insert(result, id)
-        end
-    end
-    return result
-end
 
-traverseAlongZiplineWithDirection = function(rootPart: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, isPositiveDirection: boolean)
+----- Zipline traversal -----
+
+traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, isPositiveDirection: boolean)
+    -- Get traverse info
+    local routeAlphaRange = ziplineGroup.route:getAlphaRange()
     local traverseSpeed = ziplineConfig.traverseSpeed
-    local reparameterization_function
-    local traverseWaypointOrder
-    local waypointId
-    local nextWaypointId
-    local routeAlpha
-    local routeDistance
-    local segmentStartDistance
-    local segmentStopDistance
-    local segmentLength
-    local traverseSegmentStartTime
-    local traverseSegmentStopTime
-    local velocitySign
-    local waypointTraverseVelocity
-    local traversePosition
-    local previousTraversePosition
-    local previousTime
+    local velocitySign = if isPositiveDirection then 1 else -1
 
     -- Get reparameterized route (assume static route)
-    reparameterization_function = SegmentedRoute.RouteUtil.Reparam.getRoute_reparameterization_function(ziplineGroup.route)
+    local reparameterization_function = SegmentedRoute.RouteUtil.Reparam.getRoute_reparameterization_function(ziplineGroup.route)
 
     -- Traverse
-    velocitySign = if isPositiveDirection then 1 else -1
-    traverseWaypointOrder = getTraverseWaypointOrder(ziplineGroup, startWaypointId, isPositiveDirection)
-    for traverseId = 1, #traverseWaypointOrder - 1 do
-        waypointId = traverseWaypointOrder[traverseId]
-        nextWaypointId = traverseWaypointOrder[traverseId + 1]
-
-        -- Throttle / debounce for waypoint
-        setWaypointTouchThrottle(ziplineGroup, waypointId, rootPart)
-
-        -- Calculate segment distances
-        routeAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[waypointId])
-        segmentStartDistance = reparameterization_function(routeAlpha, false)
-        segmentStopDistance = reparameterization_function(getWaypointAlpha(ziplineGroup.waypointInstances[nextWaypointId]), false)
-        segmentLength = math.abs(segmentStopDistance - segmentStartDistance)
-
-        -- Calculate traversal time
-        traverseSegmentStartTime = time()
-        traverseSegmentStopTime = traverseSegmentStartTime + segmentLength / traverseSpeed
-
-        while time() < traverseSegmentStopTime and canMovePart(rootPart) and rootPart == rootPart.AssemblyRootPart do
-            routeDistance = math.map(time(), traverseSegmentStartTime, traverseSegmentStopTime, segmentStartDistance, segmentStopDistance)
-            routeAlpha = reparameterization_function(routeDistance, true)
-            traversePosition = ziplineGroup.route:getPositionAtAlpha(routeAlpha, true)
-            rootPart:PivotTo(CFrame.new(traversePosition) * rootPart.CFrame.Rotation)
-
-            -- Calculate traverse velocity vector
-            local direction = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha)
-            waypointTraverseVelocity = direction * traverseSpeed
-            waypointTraverseVelocity *= velocitySign
-
-            -- Alternatively, traverse velocity based on position change
-            -- local timeChange = if previousTime then time() - previousTime else nil
-            -- local positionChange = if previousTraversePosition then traversePosition - previousTraversePosition else Vector3.zero
-            -- waypointTraverseVelocity = if timeChange then positionChange / timeChange else Vector3.zero
-
-            -- Anchor part to create movement platform effect
-            rootPart.Anchored = true
-            rootPart.AssemblyLinearVelocity = waypointTraverseVelocity
-
-            -- Update data
-            previousTraversePosition = traversePosition
-            previousTime = time()
-
-            -- Wait & unanchor
-            RunService.Heartbeat:Wait()
-            rootPart.Anchored = false
-        end
-
+    local routeAlpha = startAlpha
+    local previousTime
+    local previousTraversePosition
+    while true do
         -- Validate can move
         if not (canMovePart(rootPart) and rootPart == rootPart.AssemblyRootPart) then
             break
         end
-    end
 
-    -- Throttle / debounce for last waypoint
-    if canMovePart(rootPart) and rootPart == rootPart.AssemblyRootPart then
-        setWaypointTouchThrottle(ziplineGroup, nextWaypointId, rootPart)
+        -- Throttle / debounce for nearby waypoint
+        local nearbyWaypointId = nil
+        for waypointId, waypoint in ziplineGroup.waypointInstances do
+            if math.abs(getWaypointAlpha(waypoint) - routeAlpha) < 0.1 then
+                nearbyWaypointId = waypointId
+            end
+        end
+        if nearbyWaypointId then
+            setWaypointTouchThrottle(ziplineGroup, nearbyWaypointId, rootPart)
+        end
+
+        -- Update route alpha
+        local currentTime = time()
+        if velocitySign ~= 0 then
+            local routeDistance = reparameterization_function(routeAlpha, false)
+            local deltaDistance = 0
+            if previousTime then
+                deltaDistance = (currentTime - previousTime) * traverseSpeed
+                deltaDistance *= velocitySign
+            end
+            routeDistance += deltaDistance
+            routeAlpha = reparameterization_function(routeDistance, true)
+        end
+
+        -- Resolve route alpha
+        if routeAlpha < routeAlphaRange.Min or routeAlpha > routeAlphaRange.Max then
+            if ziplineConfig.isLooped then
+                local rangeScalar = routeAlphaRange.Max - routeAlphaRange.Min
+                routeAlpha = (routeAlpha - routeAlphaRange.Min) % rangeScalar + routeAlphaRange.Min
+            else
+                break
+            end
+        end
+
+        -- Calculate traverse position
+        local traversePosition = ziplineGroup.route:getPositionAtAlpha(routeAlpha, true)
+
+        -- Calculate traverse velocity vector
+        local traverseVelocity = Vector3.zero
+        if previousTime and previousTraversePosition then
+            local positionChange = traversePosition - previousTraversePosition
+            local timeChange = currentTime - previousTime
+            traverseVelocity = positionChange / timeChange
+        end
+
+        -- Set traverse kinematics
+        rootPart:PivotTo(CFrame.new(traversePosition) * rootPart.CFrame.Rotation)
+        rootPart.Anchored = true
+        rootPart.AssemblyLinearVelocity = traverseVelocity
+
+        -- Delay
+        task.wait()
+        rootPart.Anchored = false
+
+        -- Update state
+        previousTime = currentTime
+        previousTraversePosition = traversePosition
     end
 end
 
@@ -631,6 +677,11 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     ziplineGroupInfo.route = ziplineRoute
     for _, segment in orderedSegments do
         ziplineRoute:addSegment(segment)
+    end
+
+    -- Create zipline loop
+    if ziplineConfig.isLooped then
+        ziplineRoute:connectLoop(1)
     end
 
     -- Create zipline visualizer VFX

@@ -16,6 +16,7 @@ type WaypointConfig = {
 
 export type ZiplineConfig = {
     hide_controlPoints: boolean,
+    isLooped: boolean,
     startDelay_clientPies: number,
     startDelay_objects: number,
     startDelay_players: number,
@@ -43,6 +44,7 @@ Constants.waypointConfigAttributes = {
 
 Constants.ziplineConfigAttributes = {
     hide_controlPoints = "Hide_ControlPoints",
+    isLooped = "IsLooped",
     startDelay_clientPies = "StartDelay_ClientPies",
     startDelay_objects = "StartDelay_Objects",
     startDelay_players = "StartDelay_Players",
@@ -68,6 +70,7 @@ getZiplineConfig = function(configInstance: Configuration?)
 
     local result = {
         hide_controlPoints = realConfig:GetAttribute(Constants.ziplineConfigAttributes.hide_controlPoints) ~= false,
+        isLooped = realConfig:GetAttribute(Constants.ziplineConfigAttributes.isLooped) == true,
         startDelay_clientPies = tonumber(realConfig:GetAttribute(Constants.ziplineConfigAttributes.startDelay_clientPies)) or 0,
         startDelay_objects = tonumber(realConfig:GetAttribute(Constants.ziplineConfigAttributes.startDelay_objects)) or 0,
         startDelay_players = tonumber(realConfig:GetAttribute(Constants.ziplineConfigAttributes.startDelay_players)) or 0.5,

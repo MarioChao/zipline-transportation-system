@@ -17,7 +17,8 @@ ZiplineConfig:
 
 | Config | Type | Description | Default |
 |:---:|:---:|:---|:---:|
-| Hide_ControlPoints | boolean | Whether initial control points are hidden. | true |
+| Hide_ControlPoints | boolean | Whether control points are hidden. | true |
+| IsLooped | boolean | Whether the whole zipline forms a loop. | false |
 | StartDelay_ClientPies | number | Delay before client pies start traversing the Zipline. | 0 |
 | StartDelay_Players | number | Delay before players start traversing the Zipline. | 0.5 |
 | StartDelay_Objects | number | Delay before other objects start traversing the Zipline. | 0 |

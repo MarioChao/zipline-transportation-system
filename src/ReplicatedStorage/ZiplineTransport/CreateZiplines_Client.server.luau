@@ -14,7 +14,10 @@ local ZiplineTrack = require(script.Parent.ZiplineTrack)
 ---------- Constants ----------
 
 local Constants = {}
+
 Constants.ziplineGroupTag = "ZiplineGroup"
+
+table.freeze(Constants)
 
 
 ---------- Local functions ----------

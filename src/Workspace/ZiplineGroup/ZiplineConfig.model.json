@@ -2,6 +2,7 @@
     "className": "Configuration",
     "attributes": {
         "Hide_ControlPoints": true,
+        "IsLooped": false,
         "StartDelay_ClientPies": 0,
         "StartDelay_Objects": 0,
         "StartDelay_Players": 0.5,

@@ -3,6 +3,18 @@
 ## Futures plans
 
 - Endpoint reverse direction.
+- Player traverse by input.
+
+## [v0.1.1] Looped tracks | 2026/07/30
+
+Added looped zipline tracks.
+- Through the `IsLooped` attribute of `ZiplineConfig`.
+- Objects in a loop will not normally exit the zipline track.
+
+Modified traversal function to use delta time instead of absolute time.
+- Allows more complex traversals.
+
+Disabled collision for hidden waypoints.
 
 ## [v0.1.0] Client pie attributes + Fixed disable collision | 2026/07/29
 
