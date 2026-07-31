@@ -2,23 +2,38 @@
 
 ---------- Services ----------
 
-local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 
 ---------- Imports ----------
 
-local ZiplineTrack = require(script.Parent.ZiplineTrack)
+local ZiplineTrack = require(script.Parent:WaitForChild("ZiplineTrack"))
+
+local _Modules = script.Parent.Parent
+local ContainerMechanic = require(_Modules:WaitForChild("ContainerMechanic"))
+
+
+---------- Types ----------
+
+type ZiplineTagConfig = {}
 
 
 ---------- Constants ----------
 
 local Constants = {}
 
-Constants.ziplineGroupTag = "ZiplineGroup"
+Constants.ziplineConfigTag = "ZiplineConfig"
 
 table.freeze(Constants)
+
+
+---------- Globals ----------
+
+local Globals = {}
+
+Globals.container_ancestryChangedConnection = {} :: {[Instance]: RBXScriptConnection}
+Globals.container_isUnderWorkspace = {} :: {[Instance]: boolean?}
 
 
 ---------- Local functions ----------
@@ -29,8 +44,9 @@ local getIsTaggedRider
 
 local isValidPart_function
 
-local setUpTagged
-local cleanUpTagged
+local getConfigFromInstance
+local setUpContainer
+local cleanUpContainer
 
 
 ----- Rider -----
@@ -85,25 +101,54 @@ isValidPart_function = function(part: BasePart, ziplineConfig: ZiplineTrack.Zipl
 end
 
 
------ Tag -----
+----- Container mechanic -----
 
-setUpTagged = function(taggedInstance: Instance)
-    ZiplineTrack.setUpZiplineGroup(taggedInstance, isValidPart_function, false)
+getConfigFromInstance = function(configInstance: Instance): ZiplineTagConfig
+    return {}
 end
 
-cleanUpTagged = function(taggedInstance: Instance)
-    ZiplineTrack.cleanUpZiplineGroup(taggedInstance)
+setUpContainer = function(container: Instance, config: ZiplineTagConfig)
+    Globals.container_isUnderWorkspace[container] = container:IsDescendantOf(workspace)
+    if Globals.container_isUnderWorkspace[container] then
+        ZiplineTrack.setUpZiplineGroup(container, isValidPart_function, true)
+    end
+
+    -- Ancestry changed
+    if Globals.container_ancestryChangedConnection[container] then
+        Globals.container_ancestryChangedConnection[container]:Disconnect()
+    end
+    Globals.container_ancestryChangedConnection[container] = container.AncestryChanged:Connect(function()
+        local previousIsUnderWorkspace = Globals.container_isUnderWorkspace[container]
+        local isUnderWorkspace = container:IsDescendantOf(workspace)
+        if previousIsUnderWorkspace ~= isUnderWorkspace then
+            if isUnderWorkspace then
+                ZiplineTrack.setUpZiplineGroup(container, isValidPart_function, true)
+            else
+                ZiplineTrack.cleanUpZiplineGroup(container)
+            end
+        end
+        Globals.container_isUnderWorkspace[container] = isUnderWorkspace
+    end)
+end
+
+cleanUpContainer = function(container: Instance)
+    ZiplineTrack.cleanUpZiplineGroup(container)
+    if Globals.container_ancestryChangedConnection[container] then
+        Globals.container_ancestryChangedConnection[container]:Disconnect()
+    end
+    Globals.container_ancestryChangedConnection[container] = nil
+    Globals.container_isUnderWorkspace[container] = nil
 end
 
 
 ----- Main -----
 
 local function main()
-    CollectionService:GetInstanceAddedSignal(Constants.ziplineGroupTag):Connect(setUpTagged)
-    CollectionService:GetInstanceRemovedSignal(Constants.ziplineGroupTag):Connect(cleanUpTagged)
-    for _, tagged in CollectionService:GetTagged(Constants.ziplineGroupTag) do
-        setUpTagged(tagged)
-    end
+    local mechanic = ContainerMechanic.new(Constants.ziplineConfigTag)
+    mechanic:setFunction_getConfigFromInstance(getConfigFromInstance)
+    mechanic:setFunction_setUpContainer(setUpContainer)
+    mechanic:setFunction_cleanUpContainer(cleanUpContainer)
+    mechanic:run()
 end
 
 

@@ -5,6 +5,16 @@
 - Endpoint reverse direction.
 - Particles & sound effects.
 
+## [v0.2.3] Container mechanic + Ancestry check + Clean up | 2026/07/31 (4)
+
+Migrated `ZiplineGroup` tag to `ZiplineConfig` [ContainerMechanic](https://github.com/MarioChao/container-mechanic) tag.
+
+Added automatic clean up when `ZiplineConfig` moves outside the `workspace` in the ancestry.
+
+Fixed collision properties not fully copied from template parts.
+
+Fixed traversal function running after cleaning up.
+
 ## [v0.2.2] Anchored connection fix | 2026/07/31 (3)
 
 Fixed ziplines connecting to pies after it stick to some anchored object.

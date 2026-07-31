@@ -1,5 +1,8 @@
 {
     "className": "Configuration",
+    "properties": {
+        "Tags": ["ZiplineConfig"]
+    },
     "attributes": {
         "Hide_ControlPoints": true,
         "IsLooped": false,

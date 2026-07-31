@@ -32,11 +32,14 @@ type ZiplineGroupInfo = {
     config: ZiplineConfig,
     container: Instance,
     route: LinkedRoute,
-    waypointInstances: {BasePart},
     visualizedFXFolder: Folder?,
+    waypointFXFolder: Folder,
+    waypointInstances: {BasePart},
     extraFXFolder: Folder,
     extraInstances: {Instance},
     connections: {RBXScriptConnection},
+    part_traverseThread: {[Instance]: thread},
+    part_isTraversing: {[Instance]: true?}
 }
 
 export type ZiplineConfig = ZiplineConfigs.ZiplineConfig
@@ -53,6 +56,12 @@ Constants.ziplineConfigName = "ZiplineConfig"
 
 Constants.waypointTouchThrottle = 0.5
 
+Constants.storedCollisionAttributeNames = {
+    audioCanCollide = "StoredAudioCanCollide",
+    canCollide = "StoredCanCollide",
+    canQuery = "StoredCanQuery",
+    canTouch = "StoredCanTouch",
+}
 Constants.storedTransparencyAttributeName = "StoredTransparency"
 Constants.routeAlphaAttributeName = "RouteAlpha"
 
@@ -66,7 +75,7 @@ table.freeze(Constants)
 ---------- Global variables ----------
 
 local Globals = {}
-Globals.activeZiplineGroup = {} :: {[Instance]: ZiplineGroupInfo}
+Globals.activeZiplineGroup = {} :: {[Instance]: ZiplineGroupInfo?}
 Globals.assemblyRootPart_inZipline = {} :: {[BasePart]: boolean}
 Globals.waypointInstance_part_throttle = {} :: {[Instance]: {[BasePart]: true?}}
 Globals.waypointInstance_part_throttleThread = {} :: {[Instance]: {[BasePart]: thread?}}
@@ -78,6 +87,8 @@ local getPieModel
 local getIsPieAClientPie
 local getIsTaggedRider
 
+local storeCollisionInfo
+local setCollisionInfoFromTemplate
 local processFXInfo
 local createZiplineRouteVisualizerVFX
 
@@ -150,6 +161,27 @@ end
 
 ----- Zipline effect functions -----
 
+storeCollisionInfo = function(part: BasePart)
+    local properties = {
+        audioCanCollide = part.AudioCanCollide,
+        canCollide = part.CanCollide,
+        canQuery = part.CanQuery,
+        canTouch = part.CanTouch,
+    }
+    for propertyName, attributeName in Constants.storedCollisionAttributeNames :: {[string]: string} do
+        if not part:GetAttribute(attributeName) then
+            part:SetAttribute(attributeName, properties[propertyName])
+        end
+    end
+end
+
+setCollisionInfoFromTemplate = function(part: BasePart, template: BasePart)
+    part.AudioCanCollide = template:GetAttribute(Constants.storedCollisionAttributeNames.audioCanCollide) == true
+    part.CanCollide = template:GetAttribute(Constants.storedCollisionAttributeNames.canCollide) == true
+    part.CanQuery = template:GetAttribute(Constants.storedCollisionAttributeNames.canQuery) == true
+    part.CanTouch = template:GetAttribute(Constants.storedCollisionAttributeNames.canTouch) == true
+end
+
 processFXInfo = function(ziplineConfig: ZiplineConfig)
     local fxInfo = ziplineConfig.fxInfo
 
@@ -158,8 +190,11 @@ processFXInfo = function(ziplineConfig: ZiplineConfig)
         fxInfo.guidePart, fxInfo.segmentPart, fxInfo.waypointPart
     }
     for _, part in parts do
-        -- Anchor & disable collision
+        -- Anchor
         part.Anchored = true
+
+        -- Store collision
+        storeCollisionInfo(part)
         part.AudioCanCollide = false
         part.CanCollide = false
         part.CanQuery = false
@@ -186,8 +221,7 @@ createZiplineRouteVisualizerVFX = function(ziplineConfig: ZiplineConfig, zipline
 
     -- Make sure visualized parts are not collidable
     for _, part in vfxInstances do
-        part.CanCollide = false
-        part.CanTouch = templatePart.CanTouch
+        setCollisionInfoFromTemplate(part, templatePart)
         part.Transparency = tonumber(templatePart:GetAttribute(Constants.storedTransparencyAttributeName)) or 1
     end
 
@@ -252,8 +286,7 @@ createZiplineRouteWaypointsVFX = function(ziplineConfig: ZiplineConfig, ziplineR
 
     -- Ensure waypoint part properties
     for _, part in vfxInstances do
-        part.CanCollide = false
-        part.CanTouch = templatePart.CanTouch
+        setCollisionInfoFromTemplate(part, templatePart)
         part.Transparency = tonumber(templatePart:GetAttribute(Constants.storedTransparencyAttributeName)) or 1
     end
 
@@ -290,7 +323,7 @@ createZiplineRouteWaypointsVFX = function(ziplineConfig: ZiplineConfig, ziplineR
     return partsFolder, vfxInstances
 end
 
-setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: ZiplineConfig, ziplineRoute: LinkedRoute)
+setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: ZiplineConfig, ziplineRoute: LinkedRoute, ziplineGroup: ZiplineGroupInfo)
     local partsFolder
     local vfxInstances
     local proximityPrompt
@@ -304,7 +337,7 @@ setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: Ziplin
             if getIsActiveWaypoint(i, ziplineConfig, #vfxInstances) then
                 proximityPrompt = ziplineConfig.fxInfo.waypointProximityPrompt:Clone()
                 proximityPrompt.Parent = vfxInstances[i]
-                proximityPrompt.Triggered:Connect(function(player: Player)
+                table.insert(ziplineGroup.connections, proximityPrompt.Triggered:Connect(function(player: Player)
                     -- Check valid
                     local character = player.Character
                     local part = character and character:FindFirstChild("HumanoidRootPart")
@@ -313,10 +346,10 @@ setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: Ziplin
                         local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
                         local isValidPart = ziplineConfig.ridersConfig.support_players and isPlayer
                         if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
-                            onTouchedZipline(part, i, ziplineConfig, Globals.activeZiplineGroup[container])
+                            onTouchedZipline(part, i, ziplineConfig, ziplineGroup)
                         end
                     end
-                end)
+                end))
             end
         end
     end
@@ -434,7 +467,23 @@ onTouchedZipline = function(part: BasePart, startWaypointId: number, ziplineConf
     if isValid then
         Globals.assemblyRootPart_inZipline[assemblyRootPart] = true
         task.defer(function()
-            traverseAlongZipline(assemblyRootPart, startWaypointId, ziplineConfig, ziplineGroup)
+            -- Traverse in thread
+            if ziplineGroup.part_traverseThread[assemblyRootPart] then
+                task.cancel(ziplineGroup.part_traverseThread[assemblyRootPart])
+            end
+            ziplineGroup.part_isTraversing[assemblyRootPart] = true
+            ziplineGroup.part_traverseThread[assemblyRootPart] = task.spawn(function()
+                traverseAlongZipline(assemblyRootPart, startWaypointId, ziplineConfig, ziplineGroup)
+                ziplineGroup.part_isTraversing[assemblyRootPart] = nil
+            end)
+
+            -- Wait until traverse finished
+            while ziplineGroup.part_isTraversing[assemblyRootPart] do
+                task.wait()
+            end
+
+            -- Post-traverse operations
+            ziplineGroup.part_traverseThread[assemblyRootPart] = nil
             task.wait()
             Globals.assemblyRootPart_inZipline[assemblyRootPart] = nil
         end)
@@ -911,6 +960,8 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     ziplineGroupInfo.extraFXFolder.Parent = workspace
     ziplineGroupInfo.extraInstances = {}
     ziplineGroupInfo.connections = {}
+    ziplineGroupInfo.part_traverseThread = {}
+    ziplineGroupInfo.part_isTraversing = {}
     Globals.activeZiplineGroup[container] = ziplineGroupInfo
 
     -- Get zipline config
@@ -939,7 +990,16 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     end
 
     -- Create zipline waypoints
-    _, ziplineGroupInfo.waypointInstances = setUpZiplineRouteWaypoints(container, ziplineConfig, ziplineRoute)
+    ziplineGroupInfo.waypointFXFolder, ziplineGroupInfo.waypointInstances = setUpZiplineRouteWaypoints(container, ziplineConfig, ziplineRoute, ziplineGroupInfo)
+    if not willCreateRouteVFX then
+        for _, part in ziplineGroupInfo.waypointInstances do
+            part.Transparency = 1
+            part.AudioCanCollide = false
+            part.CanCollide = false
+            part.CanQuery = false
+            part.CanTouch = false
+        end
+    end
 
     -- Hide control points
     if ziplineConfig.hide_controlPoints then
@@ -961,14 +1021,41 @@ end
 cleanUpZiplineGroup = function(container: Instance)
     local ziplineGroup = Globals.activeZiplineGroup[container]
     if ziplineGroup then
-        for _, instance in ziplineGroup.waypointInstances do
-            table.clear(Globals.waypointInstance_part_throttle[instance])
-        end
+        -- Clear route
         ziplineGroup.route:cleanUp()
-        if ziplineGroup.visualizedFXFolder then ziplineGroup.visualizedFXFolder:Destroy() end
-        for _, object in ziplineGroup.extraInstances do object:Destroy() end
+
+        -- Clear connections
         for _, connection in ziplineGroup.connections do connection:Disconnect() end
-        table.clear(ziplineGroup[container])
+
+        -- Clear threads
+        for part, thread in ziplineGroup.part_traverseThread do
+            task.cancel(thread)
+            if ziplineGroup.part_isTraversing[part] then
+                ziplineGroup.part_isTraversing[part] = nil
+            end
+        end
+        table.clear(ziplineGroup.part_traverseThread)
+
+        -- Clear waypoint info
+        for _, instance in ziplineGroup.waypointInstances do
+            if Globals.waypointInstance_part_throttle[instance] then
+                table.clear(Globals.waypointInstance_part_throttle[instance])
+            end
+            if Globals.waypointInstance_part_throttleThread[instance] then
+                table.clear(Globals.waypointInstance_part_throttleThread[instance])
+            end
+        end
+
+        -- Destroy fx instances
+        ziplineGroup.extraFXFolder:Destroy()
+        if ziplineGroup.visualizedFXFolder then
+            ziplineGroup.visualizedFXFolder:Destroy()
+        end
+        ziplineGroup.waypointFXFolder:Destroy()
+        for _, object in ziplineGroup.extraInstances do object:Destroy() end
+
+        -- Remove from active groups
+        Globals.activeZiplineGroup[container] = nil
     end
 end
 
