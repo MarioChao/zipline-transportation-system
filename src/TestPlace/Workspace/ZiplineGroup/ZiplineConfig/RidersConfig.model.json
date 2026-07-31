@@ -10,7 +10,7 @@
         "Dismount_WillJump": true,
         "Offset_ClientPies": {"Vector3": [0, 0, 0]},
         "Offset_Objects": {"Vector3": [0, 0, 0]},
-        "Offset_Players": {"Vector3": [0, -3, 0]},
+        "Offset_Players": {"Vector3": [0, -2, 0]},
         "Offset_Tagged": {"Vector3": [0, 0, 0]},
         "StartDelay_ClientPies": 0,
         "StartDelay_Objects": 0,

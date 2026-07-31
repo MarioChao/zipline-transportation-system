@@ -5,7 +5,13 @@
 - Endpoint reverse direction.
 - Particles & sound effects.
 
-## [v0.2.0] Riders config + Player input + Guide part | 2026/07/31
+## [v0.2.1] Index fix | 2026/07/31 (2)
+
+Removed a line accessing `_Index` that causes an error.
+
+Changed default offset for players to 0, -2, 0.
+
+## [v0.2.0] Riders config + Player input + Guide part | 2026/07/31 (1)
 
 Added `RidersConfig` that stores attributes related to objects riding the zipline.
 - Allow: UserControl.

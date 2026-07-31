@@ -34,7 +34,7 @@ RidersConfig:
 | Dismount_KeepMomentum | boolean | Whether objects keep their momentum when detached. | false |
 | Dismount_WillJump | boolean | Whether the player will jump when dismounting. | true |
 | Offset_ClientPies | Vector3 | Offset of client pies relative to zipline when `Connect_ByRope` is false. | 0, 0, 0 |
-| Offset_Players | Vector3 | Offset of players relative to zipline when `Connect_ByRope` is false. | 0, -3, 0 |
+| Offset_Players | Vector3 | Offset of players relative to zipline when `Connect_ByRope` is false. | 0, -2, 0 |
 | Offset_Tagged | Vector3 | Offset of tagged objects relative to zipline when `Connect_ByRope` is false. | 0, 0, 0 |
 | Offset_Objects | Vector3 | Offset of other (server) objects relative to zipline when `Connect_ByRope` is false. | 0, 0, 0 |
 | StartDelay_ClientPies | number | Delay before client pies start traversing the zipline. | 0 |

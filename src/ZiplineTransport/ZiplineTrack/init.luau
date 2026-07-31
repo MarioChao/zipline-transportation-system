@@ -18,7 +18,6 @@ local SpatialQuery = require(Packages:WaitForChild("SpatialQuery"))
 local SegmentedRoute = require(Packages:WaitForChild("SegmentedRoute"))
 local UIUtil = require(Packages:WaitForChild("UIUtil"))
 local LinkedRoute = SegmentedRoute.LinkedRoute
-local _SegmentedRoute = require(Packages._Index["mariochao_segmented-route@0.1.3"]["segmented-route"])
 
 local ClientMovementDetector
 if RunService:IsClient() then
@@ -27,7 +26,7 @@ end
 
 ---------- Types ----------
 
-type LinkedRoute = _SegmentedRoute.LinkedRoute
+type LinkedRoute = typeof(LinkedRoute) & {_routeSegments: {any}}
 
 type ZiplineGroupInfo = {
     config: ZiplineConfig,
