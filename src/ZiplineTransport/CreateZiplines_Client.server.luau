@@ -4,6 +4,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 
 ---------- Imports ----------
@@ -23,7 +24,8 @@ table.freeze(Constants)
 ---------- Local functions ----------
 
 local getPieModel
-local isPieAClientPie
+local getIsPieAClientPie
+local getIsTaggedRider
 
 local isValidPart_function
 
@@ -31,7 +33,7 @@ local setUpTagged
 local cleanUpTagged
 
 
------ Pie hiking tool -----
+----- Rider -----
 
 getPieModel = function(instance: Instance?): Model?
 	-- Find a pie model by looking through the parent instances
@@ -50,7 +52,7 @@ getPieModel = function(instance: Instance?): Model?
 	return nil
 end
 
-isPieAClientPie = function(pieModel: Model?): boolean
+getIsPieAClientPie = function(pieModel: Model?): boolean
 	local pieMainPart = pieModel and pieModel:FindFirstChild("MainPart") :: Part
 	local pieUniqueId = pieModel and pieModel:FindFirstChild("UniquePieId") :: StringValue
 	local pieTag = pieUniqueId and pieUniqueId.Value
@@ -58,13 +60,28 @@ isPieAClientPie = function(pieModel: Model?): boolean
 	return _isClientPie == true
 end
 
+getIsTaggedRider = function(rootPart: BasePart?, ziplineConfig: ZiplineTrack.ZiplineConfig)
+    local hasTag = false
+    if rootPart then
+        local targetTag
+        if RunService:IsClient() then
+            targetTag = ziplineConfig.ridersConfig.tagName_client
+        else
+            targetTag = ziplineConfig.ridersConfig.tagName_server
+        end
+        hasTag = rootPart:HasTag(targetTag)
+    end
+    return hasTag
+end
+
 
 ----- Valid part -----
 
-isValidPart_function = function(part: BasePart)
+isValidPart_function = function(part: BasePart, ziplineConfig: ZiplineTrack.ZiplineConfig)
     local isLocalPlayer = Players:GetPlayerFromCharacter(part.Parent) == Players.LocalPlayer
-    local isClientPie = isPieAClientPie(getPieModel(part))
-    return isLocalPlayer or isClientPie
+    local isClientPie = getIsPieAClientPie(getPieModel(part))
+	local isTaggedRider = getIsTaggedRider(part, ziplineConfig)
+    return isLocalPlayer or isClientPie or isTaggedRider
 end
 
 

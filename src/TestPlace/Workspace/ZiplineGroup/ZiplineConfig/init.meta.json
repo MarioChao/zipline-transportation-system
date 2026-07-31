@@ -1,0 +1,8 @@
+{
+    "className": "Configuration",
+    "attributes": {
+        "Hide_ControlPoints": true,
+        "IsLooped": false,
+        "TraverseSpeed": 20
+    }
+}

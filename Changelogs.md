@@ -3,7 +3,28 @@
 ## Futures plans
 
 - Endpoint reverse direction.
-- Player traverse by input.
+- Particles & sound effects.
+
+## [v0.2.0] Riders config + Player input + Guide part | 2026/07/31
+
+Added `RidersConfig` that stores attributes related to objects riding the zipline.
+- Allow: UserControl.
+- Connect: ByRope, RopeLength.
+- Dismount: ByEnd, ByJump, KeepMomentum, WillJump.
+- Offset / StartDelay / Support: ClientPies, Objects, Players, Tagged.
+- TagName: Client, Server.
+
+Renamed `WaypointConfig` to `WaypointsConfig`.
+
+Added player input support for traversing direction (user control) & dismounting (by jump).
+
+Renamed `VFXInfo` to `FXInfo` and moved it to be under `ZiplineConfig`.
+
+Changed the traversal method to use a guide part, inspired by one in [EToH Kit](https://etohgame.github.io/kit/docs/client-objects/ziplines).
+- If `Connect_ByRope` is true, the guide part will connect with the rider through a `RopeConstraint`.
+    - Otherwise, a `WeldConstraint` is used, and the rider is connected at a relative offset vector.
+
+Organized repository for wally package publication.
 
 ## [v0.1.1] Looped tracks | 2026/07/30
 

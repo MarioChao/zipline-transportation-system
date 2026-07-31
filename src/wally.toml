@@ -1,0 +1,18 @@
+[package]
+name = "mariochao/zipline-transportation-system"
+description = "A simple zipline/conduit system that carries objects through a series of waypoints."
+
+version = "0.2.0"
+license = "MIT"
+authors = ["Mario Chao"]
+realm = "shared"
+registry = "https://github.com/UpliftGames/wally-index"
+repository = "https://github.com/MarioChao/zipline-transportation-system"
+
+exclude = ["TestPlace"]
+
+[dependencies]
+ClientMovementDetector = "mariochao/client-movement-detector@^1.1.1"
+SegmentedRoute = "mariochao/segmented-route@^0.1.3"
+SpatialQuery = "anytrio/spatial-query@^1.1.0"
+UIUtil = "mariochao/ui-util@^0.0.1"

@@ -1,0 +1,11 @@
+{
+    "className": "Configuration",
+    "attributes": {
+        "Activate_ProximityPrompt": false,
+        "Activate_PlayerTouch": true,
+        "Create_Middle": false,
+        "Create_Start": true,
+        "Create_Stop": true,
+        "Touch_Radius": 1
+    }
+}

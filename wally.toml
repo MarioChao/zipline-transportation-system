@@ -1,9 +1,0 @@
-[package]
-name = "mariochao/zipline-transportation-system"
-version = "0.0.3"
-registry = "https://github.com/UpliftGames/wally-index"
-realm = "shared"
-
-[dependencies]
-SegmentedRoute = "mariochao/segmented-route@^0.1.2"
-SpatialQuery = "anytrio/spatial-query@^1.1.0"

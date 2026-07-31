@@ -5,17 +5,17 @@
 
     "ReplicatedStorage": {
       "Modules": {
-        "$path": "Packages",
+        "$path": "src/Packages",
         "$ignoreUnknownInstances": true,
 
         "ZiplineTransport": {
-          "$path": "src/ReplicatedStorage/ZiplineTransport"
+          "$path": "src/ZiplineTransport"
         }
       }
     },
 
     "Workspace": {
-      "$path": "src/Workspace",
+      "$path": "src/TestPlace/Workspace",
       "$ignoreUnknownInstances": true
     }
   },

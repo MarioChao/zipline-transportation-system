@@ -1,0 +1,26 @@
+{
+    "className": "Configuration",
+    "attributes": {
+        "Allow_UserControl": false,
+        "Connect_ByRope": false,
+        "Connect_RopeLength": 5,
+        "Dismount_ByEnd": true,
+        "Dismount_ByJump": false,
+        "Dismount_KeepMomentum": false,
+        "Dismount_WillJump": true,
+        "Offset_ClientPies": {"Vector3": [0, 0, 0]},
+        "Offset_Objects": {"Vector3": [0, 0, 0]},
+        "Offset_Players": {"Vector3": [0, -3, 0]},
+        "Offset_Tagged": {"Vector3": [0, 0, 0]},
+        "StartDelay_ClientPies": 0,
+        "StartDelay_Objects": 0,
+        "StartDelay_Players": 0,
+        "StartDelay_Tagged": 0,
+        "Support_ClientPies": true,
+        "Support_Objects": false,
+        "Support_Players": true,
+        "Support_Tagged": true,
+        "TagName_Client": "ZiplineRider_Client",
+        "TagName_Server": "ZiplineRider_Server"
+    }
+}

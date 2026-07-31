@@ -11,5 +11,4 @@ sourcemap.json
 .DS_Store
 
 # Wally
-/Packages
-wally.lock
+src/Packages

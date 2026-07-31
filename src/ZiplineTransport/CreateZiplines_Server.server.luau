@@ -30,7 +30,7 @@ local cleanUpTagged
 
 ----- Valid part -----
 
-isValidPart_function = function(part: BasePart)
+isValidPart_function = function(part: BasePart, ziplineConfig: ZiplineTrack.ZiplineConfig)
     local assemblyRootPart = part.AssemblyRootPart
     local isNotPlayer = not Players:GetPlayerFromCharacter(assemblyRootPart and assemblyRootPart.Parent)
     return isNotPlayer

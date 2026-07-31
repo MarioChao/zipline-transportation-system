@@ -3,13 +3,28 @@
     "children": [
         {
             "className": "Part",
-            "name": "VFXPart",
+            "name": "GuidePart",
+            "properties": {
+                "Color": [0.5, 0.7, 0.9],
+                "Material": "SmoothPlastic",
+                "Transparency": 0,
+                "Size": [0.4, 0.4, 3],
+                "Position": [-20, 3, -15],
+                "CanCollide": false,
+                "CanQuery": false,
+                "CanTouch": false,
+                "Anchored": true
+            }
+        },
+        {
+            "className": "Part",
+            "name": "SegmentPart",
             "properties": {
                 "Color": [0.5, 0.7, 0.9],
                 "Material": "Neon",
                 "Transparency": 0,
                 "Size": [2, 0.1, 0.1],
-                "Position": [-17, 3, -10],
+                "Position": [-17, 3, -15],
                 "CanCollide": false,
                 "CanQuery": false,
                 "CanTouch": false,
@@ -25,11 +40,19 @@
                 "Material": "Neon",
                 "Transparency": 0.6,
                 "Size": [2, 2, 2],
-                "Position": [-14, 3, -10],
+                "Position": [-14, 3, -15],
                 "CanCollide": false,
                 "CanTouch": false,
                 "Anchored": true,
                 "Shape": "Ball"
+            }
+        },
+        {
+            "className": "ProximityPrompt",
+            "name": "WaypointProximityPrompt",
+            "properties": {
+                "MaxActivationDistance": 6,
+                "RequiresLineOfSight": false
             }
         }
     ]
