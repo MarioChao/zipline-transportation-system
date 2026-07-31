@@ -488,6 +488,11 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
     local startAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[startWaypointId])
     traverseAlongZiplineWithDirection(rootPart, startAlpha, ziplineConfig, ziplineGroup, isPositiveDirection)
 
+    -- Validate can move
+    if not canMovePart(rootPart) then
+        return
+    end
+
     -- Dismount: keep momentum
     if not ziplineConfig.ridersConfig.dismount_keepMomentum then
         rootPart.AssemblyLinearVelocity = Vector3.zero
@@ -585,22 +590,11 @@ getNextRouteAlpha = function(
 end
 
 traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, isPositiveDirection: boolean)
-    -- Traverse info
-    local waypointCount = #ziplineGroup.waypointInstances
-    local routeAlphaRange = ziplineGroup.route:getAlphaRange()
-    local traverseSpeed = ziplineConfig.traverseSpeed
-    local baseVelocitySign = if isPositiveDirection then 1 else -1
-
-    -- Player info
-    local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
-    local ignoreCurrentJump = true
-
-    -- Get reparameterized route (assume static route)
-    local reparameterization_function = SegmentedRoute.RouteUtil.Reparam.getRoute_reparameterization_function(ziplineGroup.route)
-    local routeDistanceRange = NumberRange.new(
-        reparameterization_function(routeAlphaRange.Min, false),
-        reparameterization_function(routeAlphaRange.Max, false)
-    )
+    -- Validate can move
+    --  This is needed in case rootPart becomes anchored right before
+    if not canMovePart(rootPart) then
+        return
+    end
 
     -- Create guide part
     local startPosition = ziplineGroup.route:getPositionAtAlpha(startAlpha)
@@ -638,6 +632,23 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
         constraint.Parent = guidePart
         table.insert(constraintInstances, constraint)
     end
+
+    -- Traverse info
+    local waypointCount = #ziplineGroup.waypointInstances
+    local routeAlphaRange = ziplineGroup.route:getAlphaRange()
+    local traverseSpeed = ziplineConfig.traverseSpeed
+    local baseVelocitySign = if isPositiveDirection then 1 else -1
+
+    -- Player info
+    local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
+    local ignoreCurrentJump = true
+
+    -- Get reparameterized route (assume static route)
+    local reparameterization_function = SegmentedRoute.RouteUtil.Reparam.getRoute_reparameterization_function(ziplineGroup.route)
+    local routeDistanceRange = NumberRange.new(
+        reparameterization_function(routeAlphaRange.Min, false),
+        reparameterization_function(routeAlphaRange.Max, false)
+    )
 
     -- Create align objects
     local alignAttachment = Instance.new("Attachment")

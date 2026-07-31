@@ -5,6 +5,10 @@
 - Endpoint reverse direction.
 - Particles & sound effects.
 
+## [v0.2.2] Anchored connection fix | 2026/07/31 (3)
+
+Fixed ziplines connecting to pies after it stick to some anchored object.
+
 ## [v0.2.1] Index fix | 2026/07/31 (2)
 
 Removed a line accessing `_Index` that causes an error.
