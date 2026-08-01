@@ -4,6 +4,16 @@
 
 - TBD.
 
+## [v0.4.2] Loop fix + Same attached fix + Smooth loop | 2026/08/01 (4)
+
+Fixed oscillation at loop when traversing.
+
+Fixed being able to attach the same part to the zipline.
+
+Added ZiplineConfig attribute `Loop_UseSmooth` for connecting ziplines with some continuity.
+- If false, the loop is formed with a linear segment.
+- Also, if the endpoints were at the same position, no additional linear segment is formed.
+
 ## [v0.4.1] Container valid part fix | 2026/08/01 (3)
 
 Fixed objects with `.Parent.Parent` being the zipline group container not able to be transported on touch.

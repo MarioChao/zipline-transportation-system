@@ -21,6 +21,7 @@ ZiplineConfig:
 |:---:|:---:|:---|:---:|
 | Hide_ControlPoints | boolean | Whether control points are hidden. | true |
 | IsLooped | boolean | Whether the whole zipline forms a loop. | false |
+| Loop_UseSmooth | boolean | Whether the loop is formed with a level of continuity. | true |
 | TraverseSpeed | number | Maximum speed when traversing the zipline. | 32 |
 | UserControl_Acceleration | number | Acceleration when traversing the zipline using user control. | 32 |
 

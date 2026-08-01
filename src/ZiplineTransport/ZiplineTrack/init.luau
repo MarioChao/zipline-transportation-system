@@ -509,6 +509,7 @@ checkZiplineAttachedObjectsIteration = function(ziplineGroup: ZiplineGroupInfo)
         -- Validate can attach
         local rootPart = object.AssemblyRootPart
         local isValid = true
+        isValid = isValid and not getIsGuideInstance(rootPart)
         isValid = isValid and canMovePart(rootPart)
         isValid = isValid and not Globals.assemblyRootPart_inZipline[rootPart]
         if not isValid then
@@ -595,7 +596,9 @@ end
 attachToZipline = function(part: BasePart, startAlpha: number, isPositiveDirection: boolean, ziplineGroup: ZiplineGroupInfo)
     -- Validate part
     local rootPart = part.AssemblyRootPart
-    local isValid = canMovePart(rootPart)
+    local isValid = true
+    isValid = isValid and not getIsGuideInstance(part)
+    isValid = isValid and canMovePart(rootPart)
     isValid = isValid and not Globals.assemblyRootPart_inZipline[rootPart]
 
     -- Traverse
@@ -853,6 +856,7 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
         reparameterization_function(routeAlphaRange.Min, false),
         reparameterization_function(routeAlphaRange.Max, false)
     )
+    local routeDistanceRangeScalar = routeDistanceRange.Max - routeDistanceRange.Min
 
     -- Start delay
     local startDelay = getTraverseZiplineStartDelay(rootPart, ziplineConfig)
@@ -1013,7 +1017,13 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
             if isReversingDirection then
                 currentTraverseVelocity *= -1
             else
-                currentTraverseVelocity = (routeDistance - previousRouteDistance) / timeChange
+                local distanceChange1 = (routeDistance - previousRouteDistance) % routeDistanceRangeScalar
+                local distanceChange2 = distanceChange1 - routeDistanceRangeScalar
+                local distanceChange = distanceChange1
+                if math.abs(distanceChange2) < math.abs(distanceChange1) then
+                    distanceChange = distanceChange2
+                end
+                currentTraverseVelocity = distanceChange / timeChange
             end
         end
 
@@ -1201,7 +1211,16 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
 
     -- Create zipline loop
     if ziplineConfig.isLooped then
-        ziplineRoute:connectLoop(1)
+        local continuity = if ziplineConfig.loop_useSmooth then 1 else 0
+        if continuity == 0 then
+            local positionStart = ziplineRoute:getPositionAtAlpha(0)
+            local positionStop = ziplineRoute:getPositionAtAlpha(ziplineRoute:getAlphaRange().Max)
+            if not positionStart:FuzzyEq(positionStop) then
+                ziplineRoute:connectLoop(continuity)
+            end
+        else
+            ziplineRoute:connectLoop(continuity)
+        end
     end
 
     -- Get reparameterized route (assume static route)

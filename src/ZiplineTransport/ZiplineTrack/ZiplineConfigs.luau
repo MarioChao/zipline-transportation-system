@@ -59,6 +59,7 @@ type WaypointsConfig = {
 export type ZiplineConfig = {
     hide_controlPoints: boolean,
     isLooped: boolean,
+    loop_useSmooth: boolean,
     traverseSpeed: number,
     userControl_traverseAcceleration: number,
     ridersConfig: RidersConfig,
@@ -111,6 +112,7 @@ Constants.waypointsConfigAttributes = {
 Constants.ziplineConfigAttributes = {
     hide_controlPoints = "Hide_ControlPoints",
     isLooped = "IsLooped",
+    loop_useSmooth = "Loop_UseSmooth",
     traverseSpeed = "TraverseSpeed",
     userControl_traverseAcceleration = "UserControl_TraverseAcceleration",
 }
@@ -205,6 +207,7 @@ getZiplineConfig = function(configInstance: Configuration?)
     local result = {
         hide_controlPoints = getDefault_boolean(realConfig:GetAttribute(Constants.ziplineConfigAttributes.hide_controlPoints), true),
         isLooped = getDefault_boolean(realConfig:GetAttribute(Constants.ziplineConfigAttributes.isLooped), false),
+        loop_useSmooth = getDefault_boolean(realConfig:GetAttribute(Constants.ziplineConfigAttributes.loop_useSmooth), true),
         traverseSpeed = getDefault_number(realConfig:GetAttribute(Constants.ziplineConfigAttributes.traverseSpeed), 32),
         userControl_traverseAcceleration = getDefault_number(realConfig:GetAttribute(Constants.ziplineConfigAttributes.userControl_traverseAcceleration), 32),
     } :: ZiplineConfig
