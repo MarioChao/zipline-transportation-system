@@ -1,0 +1,9 @@
+{
+    "className": "ObjectValue",
+    "attributes": {
+        "Attach_AtParameter": 0,
+        "Attach_FromClient": true,
+        "Attach_TraversePositiveDirection": true,
+        "Attach_UseDistanceAsParameter": true
+    }
+}

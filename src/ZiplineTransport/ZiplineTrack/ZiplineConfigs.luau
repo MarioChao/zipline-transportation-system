@@ -28,6 +28,8 @@ type RidersConfig = {
     dismount_byJump: boolean,
     dismount_keepMomentum: boolean,
     dismount_willJump: boolean,
+    enable_angularVelocity: boolean,
+    enable_linearVelocity: boolean,
     end_reverseDirection: boolean,
     offset_clientPies: Vector3,
     offset_objects: Vector3,
@@ -78,6 +80,8 @@ Constants.ridersConfigAttributes = {
     dismount_byJump = "Dismount_ByJump",
     dismount_keepMomentum = "Dismount_KeepMomentum",
     dismount_willJump = "Dismount_WillJump",
+    enable_angularVelocity = "Enable_AngularVelocity",
+    enable_linearVelocity = "Enable_LinearVelocity",
     end_reverseDirection = "End_ReverseDirection",
     offset_clientPies = "Offset_ClientPies",
     offset_objects = "Offset_Objects",
@@ -107,8 +111,8 @@ Constants.waypointsConfigAttributes = {
 Constants.ziplineConfigAttributes = {
     hide_controlPoints = "Hide_ControlPoints",
     isLooped = "IsLooped",
-    userControl_traverseAcceleration = "UserControl_TraverseAcceleration",
     traverseSpeed = "TraverseSpeed",
+    userControl_traverseAcceleration = "UserControl_TraverseAcceleration",
 }
 
 Constants.fxInfoNames = {
@@ -230,6 +234,8 @@ getRidersConfig = function(configInstance: Configuration?)
         dismount_byJump = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_byJump), false),
         dismount_keepMomentum = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_keepMomentum), false),
         dismount_willJump = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_willJump), true),
+        enable_angularVelocity = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.enable_angularVelocity), true),
+        enable_linearVelocity = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.enable_linearVelocity), true),
         end_reverseDirection = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.end_reverseDirection), false),
         offset_clientPies = getDefault_vector3(realConfig:GetAttribute(Constants.ridersConfigAttributes.offset_clientPies), Vector3.zero),
         offset_objects = getDefault_vector3(realConfig:GetAttribute(Constants.ridersConfigAttributes.offset_objects), Vector3.zero),

@@ -9,6 +9,8 @@
         "Dismount_ByJump": false,
         "Dismount_KeepMomentum": false,
         "Dismount_WillJump": true,
+        "Enable_AngularVelocity": true,
+        "Enable_LinearVelocity": true,
         "End_ReverseDirection": false,
         "Offset_ClientPies": {"Vector3": [0, 0, 0]},
         "Offset_Objects": {"Vector3": [0, 0, 0]},

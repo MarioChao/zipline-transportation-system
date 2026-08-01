@@ -11,7 +11,8 @@ local RunService = game:GetService("RunService")
 
 ---------- Imports ----------
 
-local ZiplineConfigs = require(script.ZiplineConfigs)
+local AttachedObjects = require(script:WaitForChild("AttachedObjects"))
+local ZiplineConfigs = require(script:WaitForChild("ZiplineConfigs"))
 
 local Packages = script.Parent.Parent
 local SpatialQuery = require(Packages:WaitForChild("SpatialQuery"))
@@ -29,9 +30,11 @@ end
 type LinkedRoute = typeof(LinkedRoute) & {_routeSegments: {any}}
 
 type ZiplineGroupInfo = {
+    attachedObjectsFolder: Folder,
     config: ZiplineConfig,
     container: Instance,
     route: LinkedRoute,
+    reparameterization_function: (parameter: number, inputIsDistance: boolean, willClampParameter: boolean?) -> number,
     visualizedFXFolder: Folder?,
     waypointFXFolder: Folder,
     waypointInstances: {BasePart},
@@ -71,6 +74,9 @@ Constants.guideInstanceTagName = "ZiplineGuideInstance"
 
 Constants.rotateXToZOffsetCFrame = CFrame.fromRotationBetweenVectors(Vector3.xAxis, Vector3.zAxis)
 
+Constants.isClient = RunService:IsClient()
+Constants.isServer = RunService:IsServer()
+
 table.freeze(Constants)
 
 
@@ -104,9 +110,12 @@ local canMovePart
 local getIsGuideInstance
 local getIsWaypointTouchThrottled
 local setWaypointTouchThrottle
+local checkZiplineTouchedIteration
 
-local checkZiplineTouchedLoop
-local onTouchedZipline
+local checkZiplineAttachedObjectsIteration
+
+local attachToZiplineAtWaypoint
+local attachToZipline
 local traverseAlongZipline
 
 local getTraverseZiplineStartDelay
@@ -150,7 +159,7 @@ getIsTaggedRider = function(rootPart: BasePart?, ziplineConfig: ZiplineConfig)
     local hasTag = false
     if rootPart then
         local targetTag
-        if RunService:IsClient() then
+        if Constants.isClient then
             targetTag = ziplineConfig.ridersConfig.tagName_client
         else
             targetTag = ziplineConfig.ridersConfig.tagName_server
@@ -349,7 +358,7 @@ setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: Ziplin
     partsFolder, vfxInstances = createZiplineRouteWaypointsVFX(ziplineConfig, ziplineRoute)
 
     -- Set up proximity prompts
-    if ziplineConfig.waypointsConfig.activate_proximityPrompt and RunService:IsClient() then
+    if ziplineConfig.waypointsConfig.activate_proximityPrompt and Constants.isClient then
         for i = 1, #vfxInstances do
             if getIsActiveWaypoint(i, ziplineConfig, #vfxInstances) then
                 proximityPrompt = ziplineConfig.fxInfo.waypointProximityPrompt:Clone()
@@ -363,7 +372,7 @@ setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: Ziplin
                         local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
                         local isValidPart = ziplineConfig.ridersConfig.support_players and isPlayer
                         if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
-                            onTouchedZipline(part, i, ziplineConfig, ziplineGroup, false)
+                            attachToZiplineAtWaypoint(part, i, ziplineConfig, ziplineGroup, false)
                         end
                     end
                 end))
@@ -375,7 +384,7 @@ setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: Ziplin
 end
 
 
------ Zipline touched helper functions -----
+----- Zipline touched -----
 
 canMovePart = function(part: BasePart)
     local assemblyRootPart = part.AssemblyRootPart
@@ -420,10 +429,7 @@ setWaypointTouchThrottle = function(ziplineGroup: ZiplineGroupInfo, waypointId: 
     end
 end
 
-
------ Zipline touched functions -----
-
-checkZiplineTouchedLoop = function(container: Instance, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, isValidPart_function: (BasePart, ZiplineConfig) -> boolean)
+checkZiplineTouchedIteration = function(container: Instance, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, isValidPart_function: (BasePart, ZiplineConfig) -> boolean)
     local waypointTouchRadius = ziplineConfig.waypointsConfig.touch_radius
     local waypointQueryPart
     local waypointPosition
@@ -464,58 +470,88 @@ checkZiplineTouchedLoop = function(container: Instance, ziplineConfig: ZiplineCo
 
             -- Run touched
             if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
-                onTouchedZipline(part, waypointId, ziplineConfig, ziplineGroup, true)
+                attachToZiplineAtWaypoint(part, waypointId, ziplineConfig, ziplineGroup, true)
             end
         end
     end
     waypointQueryPart:Destroy()
 end
 
-onTouchedZipline = function(part: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, checkTouchThrottle: boolean)
-    local assemblyRootPart = part.AssemblyRootPart
-    local isValid
 
-    -- Validate touched part
-    isValid = canMovePart(assemblyRootPart)
-    isValid = isValid and not Globals.assemblyRootPart_inZipline[assemblyRootPart]
-    isValid = isValid and not (checkTouchThrottle and getIsWaypointTouchThrottled(ziplineGroup, startWaypointId, assemblyRootPart))
+----- Attached objects -----
 
-    -- Traverse
-    if isValid then
-        Globals.assemblyRootPart_inZipline[assemblyRootPart] = true
-        task.defer(function()
-            -- Traverse in thread
-            if ziplineGroup.part_traverseThread[assemblyRootPart] then
-                task.cancel(ziplineGroup.part_traverseThread[assemblyRootPart])
-            end
-            ziplineGroup.part_isTraversing[assemblyRootPart] = true
-            ziplineGroup.part_traverseThread[assemblyRootPart] = task.spawn(function()
-                traverseAlongZipline(assemblyRootPart, startWaypointId, ziplineConfig, ziplineGroup)
-                ziplineGroup.part_isTraversing[assemblyRootPart] = nil
-            end)
+checkZiplineAttachedObjectsIteration = function(ziplineGroup: ZiplineGroupInfo)
+    for _, instance in ziplineGroup.attachedObjectsFolder:GetChildren() do
+        -- Validate object value
+        if not instance:IsA("ObjectValue") then
+            continue
+        end
 
-            -- Wait until traverse finished
-            while ziplineGroup.part_isTraversing[assemblyRootPart] do
-                task.wait()
-            end
+        -- Validate object
+        local object = instance.Value
+        if object and object:IsA("Model") then
+            object = object.PrimaryPart
+        end
+        if not (object and object:IsA("BasePart")) then
+            continue
+        end
 
-            -- Post-traverse operations
-            ziplineGroup.part_traverseThread[assemblyRootPart] = nil
-            task.wait()
-            Globals.assemblyRootPart_inZipline[assemblyRootPart] = nil
-        end)
+        -- Get attached object info
+        local attachedObjectConfig = AttachedObjects.getConfig(instance)
+
+        -- Validate environment
+        if attachedObjectConfig.attach_fromClient and not Constants.isClient then
+            continue
+        elseif not attachedObjectConfig.attach_fromClient and not Constants.isServer then
+            continue
+        end
+
+        -- Validate can attach
+        local rootPart = object.AssemblyRootPart
+        local isValid = true
+        isValid = isValid and canMovePart(rootPart)
+        isValid = isValid and not Globals.assemblyRootPart_inZipline[rootPart]
+        if not isValid then
+            continue
+        end
+
+        -- Clear value
+        instance.Value = nil
+
+        -- Get attach to alpha
+        local atParameter = attachedObjectConfig.attach_atParameter
+        local atAlpha
+        if attachedObjectConfig.attach_useDistanceAsParameter then
+            atAlpha = ziplineGroup.reparameterization_function(atParameter, true, true)
+        else
+            local alphaRange = ziplineGroup.route:getAlphaRange()
+            atAlpha = math.clamp(atParameter, alphaRange.Min, alphaRange.Max)
+        end
+
+        -- Attach object
+        attachToZipline(rootPart, atAlpha, attachedObjectConfig.attach_traversePositiveDirection, ziplineGroup)
     end
 end
 
-traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo)
-    -- Info
-    local waypointCount = #ziplineGroup.waypointInstances
-    local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
 
-    -- Calculated values
+----- Attaching objects -----
+
+attachToZiplineAtWaypoint = function(part: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, checkTouchThrottle: boolean)
+    -- Validate touched part
+    local rootPart = part.AssemblyRootPart
+    local isValid = true
+    isValid = isValid and canMovePart(rootPart)
+    isValid = isValid and not Globals.assemblyRootPart_inZipline[rootPart]
+    isValid = isValid and not (checkTouchThrottle and getIsWaypointTouchThrottled(ziplineGroup, startWaypointId, rootPart))
+    if not isValid then
+        return
+    end
+
+    -- Determine positive direction
+    local waypointCount = #ziplineGroup.waypointInstances
     local isPositiveDirection
 
-    -- Check looped endpoint
+    -- Resolve start waypoint based on looped endpoint
     if getIsLoopedStartWaypoint(startWaypointId, ziplineConfig) then
         local routeAlphaRange = ziplineGroup.route:getAlphaRange()
         local waypointPositiveDirection = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlphaRange.Min)
@@ -534,15 +570,17 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
         end
     end
 
+    -- Get alpha
+    local startAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[startWaypointId])
+
     -- Get direction
     if startWaypointId == 1 then
         isPositiveDirection = true
     elseif startWaypointId == waypointCount then
         isPositiveDirection = false
     else
-        local routeAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[startWaypointId])
-        local waypointPositiveDirection = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha + 0.001)
-        local waypointNegativeDirection = -ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha - 0.001)
+        local waypointPositiveDirection = ziplineGroup.route:getPositiveDirectionAtAlpha(startAlpha + 0.001)
+        local waypointNegativeDirection = -ziplineGroup.route:getPositiveDirectionAtAlpha(startAlpha - 0.001)
         local rootPartVelocityDirection = rootPart.AssemblyLinearVelocity.Unit
         if rootPartVelocityDirection ~= rootPartVelocityDirection then
             rootPartVelocityDirection = Vector3.new(0, -1, 0)
@@ -550,18 +588,66 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
         isPositiveDirection = waypointPositiveDirection:Dot(rootPartVelocityDirection) >= waypointNegativeDirection:Dot(rootPartVelocityDirection)
     end
 
+    -- Call base function
+    attachToZipline(rootPart, startAlpha, isPositiveDirection, ziplineGroup)
+end
+
+attachToZipline = function(part: BasePart, startAlpha: number, isPositiveDirection: boolean, ziplineGroup: ZiplineGroupInfo)
+    -- Validate part
+    local rootPart = part.AssemblyRootPart
+    local isValid = canMovePart(rootPart)
+    isValid = isValid and not Globals.assemblyRootPart_inZipline[rootPart]
+
+    -- Traverse
+    if isValid then
+        Globals.assemblyRootPart_inZipline[rootPart] = true
+        task.defer(function()
+            -- Traverse in thread
+            if ziplineGroup.part_traverseThread[rootPart] then
+                task.cancel(ziplineGroup.part_traverseThread[rootPart])
+            end
+            ziplineGroup.part_isTraversing[rootPart] = true
+            ziplineGroup.part_traverseThread[rootPart] = task.spawn(function()
+                traverseAlongZipline(rootPart, startAlpha, isPositiveDirection, ziplineGroup)
+                ziplineGroup.part_isTraversing[rootPart] = nil
+            end)
+
+            -- Wait until traverse finished
+            while ziplineGroup.part_isTraversing[rootPart] do
+                task.wait()
+            end
+
+            -- Post-traverse operations
+            ziplineGroup.part_traverseThread[rootPart] = nil
+            task.wait()
+            Globals.assemblyRootPart_inZipline[rootPart] = nil
+        end)
+    end
+end
+
+traverseAlongZipline = function(rootPart: BasePart, startAlpha: number, isPositiveDirection: boolean, ziplineGroup: ZiplineGroupInfo)
+    -- Info
+    local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
+    local ziplineConfig = ziplineGroup.config
+
+    -- Create attachment at start alpha
+    local startPosition = ziplineGroup.route:getPositionAtAlpha(startAlpha)
+    local tempAttachment = Instance.new("Attachment")
+    tempAttachment.WorldPosition = startPosition
+    tempAttachment.Parent = ziplineGroup.extraFXFolder
+
     -- Play grab sound
     local grabSound = ziplineConfig.fxInfo.sounds.grab:Clone()
     grabSound.Looped = false
-    grabSound.Parent = ziplineGroup.waypointInstances[startWaypointId]
+    grabSound.Parent = tempAttachment
     grabSound:Play()
     grabSound.Ended:Once(function()
         grabSound:Destroy()
+        tempAttachment:Destroy()
     end)
 
     -- Traverse
-    local startAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[startWaypointId])
-    traverseAlongZiplineWithDirection(rootPart, startAlpha, ziplineConfig, ziplineGroup, isPositiveDirection)
+    traverseAlongZiplineWithDirection(rootPart, startAlpha, isPositiveDirection, ziplineGroup)
 
     -- Validate can move
     if not canMovePart(rootPart) then
@@ -576,7 +662,7 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
 
     -- Dismount: will jump
     if ziplineConfig.ridersConfig.dismount_willJump then
-        if RunService:IsClient() and isPlayer then
+        if Constants.isClient and isPlayer then
             local player = isPlayer
             local character = player.Character
             local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
@@ -665,7 +751,7 @@ getNextRouteAlpha = function(
     return routeAlpha
 end
 
-traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, isPositiveDirection: boolean)
+traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: number, isPositiveDirection: boolean, ziplineGroup: ZiplineGroupInfo)
     -- Validate can move
     --  This is needed in case rootPart becomes anchored right before
     if not canMovePart(rootPart) then
@@ -673,6 +759,7 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
     end
 
     -- Clone guide template
+    local ziplineConfig = ziplineGroup.config
     local guideTemplate = ziplineConfig.fxInfo.guideTemplate:Clone()
 
     -- Create guide part
@@ -760,23 +847,12 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
     local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
     local ignoreCurrentJump = true
 
-    -- Get reparameterized route (assume static route)
-    local reparameterization_function = SegmentedRoute.RouteUtil.Reparam.getRoute_reparameterization_function(ziplineGroup.route)
+    -- Get distance range
+    local reparameterization_function = ziplineGroup.reparameterization_function
     local routeDistanceRange = NumberRange.new(
         reparameterization_function(routeAlphaRange.Min, false),
         reparameterization_function(routeAlphaRange.Max, false)
     )
-
-    -- Create align objects
-    local alignAttachment = Instance.new("Attachment")
-    local alignPosition = Instance.new("AlignPosition")
-    -- alignAttachment.Parent = rootPart
-    -- alignPosition.MaxForce = math.huge
-    -- alignPosition.MaxVelocity = traverseSpeed
-    -- alignPosition.Responsiveness = 1000
-    -- alignPosition.Mode = Enum.PositionAlignmentMode.OneAttachment
-    -- alignPosition.Attachment0 = alignAttachment
-    -- alignPosition.Parent = rootPart
 
     -- Start delay
     local startDelay = getTraverseZiplineStartDelay(rootPart, ziplineConfig)
@@ -791,7 +867,7 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
 
             -- Resolve dismount: by jump
             if ziplineConfig.ridersConfig.dismount_byJump then
-                if RunService:IsClient() and isPlayer then
+                if Constants.isClient and isPlayer then
                     local isJumping = ClientMovementDetector.getIsJumping()
                     if ignoreCurrentJump then
                         -- Ignore if jump held from before the zipline traversal
@@ -805,6 +881,7 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
             -- Move
             guidePart:PivotTo(startRightCFrame)
             guidePart.AssemblyLinearVelocity = Vector3.zero
+            guidePart.AssemblyAngularVelocity = Vector3.zero
 
             -- Delay
             task.wait()
@@ -812,7 +889,7 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
     end
 
     -- Get current speed
-    local useAcceleration = RunService:IsClient() and isPlayer and ziplineConfig.ridersConfig.allow_userControl
+    local useAcceleration = Constants.isClient and isPlayer and ziplineConfig.ridersConfig.allow_userControl
     local currentTraverseVelocity = maxTraverseSpeed
     if useAcceleration then
         currentTraverseVelocity = 0
@@ -845,7 +922,7 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
 
         -- Calculate velocity sign
         local velocitySign = baseVelocitySign
-        if RunService:IsClient() and isPlayer and ziplineConfig.ridersConfig.allow_userControl then
+        if Constants.isClient and isPlayer and ziplineConfig.ridersConfig.allow_userControl then
             local moveDirection = ClientMovementDetector.getMoveDirection_input()
             local isForwards = moveDirection.Z < 0
             local isBackwards = moveDirection.Z > 0
@@ -907,7 +984,7 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
 
         -- Resolve dismount: by jump
         if ziplineConfig.ridersConfig.dismount_byJump then
-            if RunService:IsClient() and isPlayer then
+            if Constants.isClient and isPlayer then
                 local isJumping = ClientMovementDetector.getIsJumping()
                 if ignoreCurrentJump then
                     -- Ignore if jump held from before the zipline traversal
@@ -977,11 +1054,14 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
         end
 
         -- Set traverse kinematics
-        -- alignPosition.Position = traversePosition
         local traverseRightCFrame = traverseLookCFrame:ToWorldSpace(Constants.rotateXToZOffsetCFrame)
         guidePart:PivotTo(traverseRightCFrame)
-        guidePart.AssemblyLinearVelocity = traverseVelocity
-        guidePart.AssemblyAngularVelocity = traverseAngularVelocity
+        if ziplineConfig.ridersConfig.enable_linearVelocity then
+            guidePart.AssemblyLinearVelocity = traverseVelocity
+        end
+        if ziplineConfig.ridersConfig.enable_angularVelocity then
+            guidePart.AssemblyAngularVelocity = traverseAngularVelocity
+        end
 
         -- Delay
         task.wait()
@@ -993,8 +1073,6 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
     end
 
     -- Clean up
-    alignPosition:Destroy()
-    alignAttachment:Destroy()
     guidePart:Destroy()
     guideBar:Destroy()
     for _, instance in constraintInstances do
@@ -1088,7 +1166,7 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     ziplineGroupInfo.container = container
     ziplineGroupInfo.visualizedFXFolder = nil
     ziplineGroupInfo.extraFXFolder = Instance.new("Folder")
-    ziplineGroupInfo.extraFXFolder.Name = "ZiplineGuidingParts"
+    ziplineGroupInfo.extraFXFolder.Name = "ZiplineExtraFX"
     ziplineGroupInfo.extraFXFolder.Parent = workspace
     ziplineGroupInfo.extraInstances = {}
     ziplineGroupInfo.connections = {}
@@ -1098,6 +1176,19 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
 
     -- Get zipline config
     ziplineConfig = ZiplineConfigs.getConfig(container:FindFirstChild(Constants.ziplineConfigName) :: Configuration)
+    ziplineGroupInfo.config = ziplineConfig
+
+    -- Get zipline attached objects folder
+    do
+        local attachedObjectsFolder
+        local child = container:FindFirstChild("AttachedObjects")
+        if child and child:IsA("Folder") then
+            attachedObjectsFolder = child
+        else
+            attachedObjectsFolder = Instance.new("Folder")
+        end
+        ziplineGroupInfo.attachedObjectsFolder = attachedObjectsFolder
+    end
 
     -- Create zipline route
     orderedControlPoints = getOrderedControlPoints(container)
@@ -1112,6 +1203,9 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     if ziplineConfig.isLooped then
         ziplineRoute:connectLoop(1)
     end
+
+    -- Get reparameterized route (assume static route)
+    ziplineGroupInfo.reparameterization_function = SegmentedRoute.RouteUtil.Reparam.getRoute_reparameterization_function(ziplineRoute)
 
     -- Process zipline FX
     processFXInfo(ziplineConfig)
@@ -1146,7 +1240,10 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
 
     -- Set up zipline connection
     table.insert(ziplineGroupInfo.connections, RunService.Heartbeat:Connect(function()
-        checkZiplineTouchedLoop(container, ziplineConfig, ziplineGroupInfo, isValidPart_function)
+        checkZiplineTouchedIteration(container, ziplineConfig, ziplineGroupInfo, isValidPart_function)
+    end))
+    table.insert(ziplineGroupInfo.connections, RunService.Heartbeat:Connect(function()
+        checkZiplineAttachedObjectsIteration(ziplineGroupInfo)
     end))
 end
 

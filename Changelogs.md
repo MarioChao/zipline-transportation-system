@@ -2,10 +2,21 @@
 
 ## Futures plans
 
-- Attaching objects without waypoints.
-- Physics attributes.
+- TBD.
 
-## [v0.3.0] Guide bar + FX particles & sounds + End reverse | 2026/08/01
+## [v0.4.0] Attaching objects + Physics attributes | 2026/08/01 (2)
+
+Added new `AttachedObjects` folder under `ZiplineGroup`.
+- Uses `ObjectValues` to automatically attach objects to the zipline at runtime.
+- Attach attributes: `AtParameter`, `FromClient`, `TraversePositiveDirection`, `UseDistanceAsParameter`.
+
+Added RidersConfig attributes `Enable_AngularVelocity` and `Enable_LinearVelocity`.
+- Determines whether the guide parts will have assembly linear velocity & assembly angular velocity.
+- Affects whether objects attached through `Connect_UseWeld` will carry other objects linearly & angularly.
+
+Modified grab sound to be played through an attachment.
+
+## [v0.3.0] Guide bar + FX particles & sounds + End reverse | 2026/08/01 (1)
 
 Added "guide bar" that acts as the midway connection between the guide part and riders.
 - Similar to the one in EToH Kit.
@@ -23,12 +34,12 @@ Added effect particles and sounds, configured through `FXInfo.GuideParticles` an
 - Two sounds: `Grab` and `Move`.
 - Any `ParticleEmitters` under `GuideParticles` will be parented to the guide part when traversing.
 
-Added attribute `UserControl_Acceleration` for specifying the maximum acceleration when traversing through user control.
+Added ZiplineConfig attribute `UserControl_Acceleration` for specifying the maximum acceleration when traversing through user control.
 
 Refactored `Dismount_ByEnd` attribute to `Dismount_ByBackwardsEnd` and `Dismount_ByForwardsEnd`.
 - Except for when using user controls, objects will always travel forward.
 
-Added attribute `End_ReverseDirection` for reversing an object's traverse direction when reaching an end.
+Added RidersConfig attribute `End_ReverseDirection` for reversing an object's traverse direction when reaching an end.
 - If the end is going to dismount, the dismount will take place instead.
 
 ## [v0.2.3] Container mechanic + Ancestry check + Clean up | 2026/07/31 (4)

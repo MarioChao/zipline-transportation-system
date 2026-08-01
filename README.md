@@ -7,6 +7,7 @@ Objects that can be transported:
 - Players.
 - Client pies thrown from the [HeartPie](https://github.com/MarioChao/HeartPie) tool.
 - Objects with certain [tags](https://create.roblox.com/docs/studio/properties#instance-tags).
+- Unanchored objects added through `AttachedObjects`.
 
 ## Configurations
 
@@ -20,7 +21,7 @@ ZiplineConfig:
 |:---:|:---:|:---|:---:|
 | Hide_ControlPoints | boolean | Whether control points are hidden. | true |
 | IsLooped | boolean | Whether the whole zipline forms a loop. | false |
-| TraverseSpeed | number | Maximum speed when traversing the zipline. | 20 |
+| TraverseSpeed | number | Maximum speed when traversing the zipline. | 32 |
 | UserControl_Acceleration | number | Acceleration when traversing the zipline using user control. | 32 |
 
 RidersConfig:
@@ -35,6 +36,8 @@ RidersConfig:
 | Dismount_ByJump | boolean | Whether jumping detaches the player from the zipline. | false |
 | Dismount_KeepMomentum | boolean | Whether objects keep their momentum when detached. | false |
 | Dismount_WillJump | boolean | Whether the player will jump when dismounting. | true |
+| Enable_AngularVelocity | boolean | Whether the guide part will have angular velocity physics. | true |
+| Enable_LinearVelocity | boolean | Whether the guide part will have linear velocity physics. | true |
 | End_ReverseDirection | boolean | Whether objects reverse direction when reaching an end. Only works if the end doesn't cause dismount. | false |
 | Offset_ClientPies | Vector3 | Offset of guide bar relative to client pies. | 0, 0, 0 |
 | Offset_Players | Vector3 | Offset of guide bar relative to players. | 0, 2, 0 |
@@ -75,13 +78,26 @@ FXInfo:
 
 ### Control Point Configurations
 
-Each control point have their own configurations.
+Each control point has their own configurations.
 
 ControlPointConfig:
 
 | Config | Type | Description | Default |
 |:---:|:---:|:---:|:---:|
 | IsBezierControlPoint | boolean | Whether the part is an intermediate control point for a Bézier curve. | false |
+
+## Attached Object Configurations
+
+Each attached object `ObjectValue` has their configurations as well.
+
+AttachedObject `ObjectValue`:
+
+| Config | Type | Description | Default |
+|:---:|:---:|:---:|:---:|
+| Attach_AtParameter | number | The location to attach the object. | 0 |
+| Attach_FromClient | boolean | Whether the object is attached from the client. Otherwise the server. | true |
+| Attach_TraversePositiveDirection | boolean | Whether the object will traverse in the positive direction initially. | true |
+| Attach_UseDistanceAsParameter | boolean | Whether AtParameter is in distance (studs). Otherwise in route alpha. | true |
 
 ## Credits
 
