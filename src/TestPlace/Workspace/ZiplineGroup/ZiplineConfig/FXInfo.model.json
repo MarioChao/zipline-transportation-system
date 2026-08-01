@@ -2,29 +2,139 @@
     "className": "Folder",
     "children": [
         {
-            "className": "Part",
-            "name": "GuidePart",
-            "properties": {
-                "Color": [0.5, 0.7, 0.9],
-                "Material": "SmoothPlastic",
-                "Transparency": 0,
-                "Size": [0.4, 0.4, 3],
-                "Position": [-20, 3, -15],
-                "CanCollide": false,
-                "CanQuery": false,
-                "CanTouch": false,
-                "Anchored": true
-            }
+            "className": "Folder",
+            "name": "GuideTemplate",
+            "children": [
+                {
+                    "className": "Part",
+                    "name": "GuideBar",
+                    "properties": {
+                        "Color": [0.5, 0.7, 0.9],
+                        "Material": "SmoothPlastic",
+                        "Transparency": 0,
+                        "Size": [0.5, 0.5, 3],
+                        "Position": [-14, 3, -15],
+                        "CanCollide": false,
+                        "CanQuery": false,
+                        "CanTouch": false,
+                        "Anchored": true
+                    },
+                    "children": [
+                        {
+                            "className": "RopeConstraint",
+                            "properties": {
+                                "Color": {"BrickColor": 43}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "className": "Part",
+                    "name": "GuidePart",
+                    "properties": {
+                        "Color": [0.5, 0.7, 0.9],
+                        "Material": "Neon",
+                        "Transparency": 0,
+                        "Size": [0.5, 0.5, 0.5],
+                        "Position": [-14, 4, -15],
+                        "CanCollide": false,
+                        "CanQuery": false,
+                        "CanTouch": false,
+                        "Anchored": true,
+                        "Shape": "Ball"
+                    }
+                }
+            ]
+        },
+        {
+            "className": "Folder",
+            "name": "GuideParticles",
+            "children": [
+                {
+                    "className": "ParticleEmitter",
+                    "properties": {
+                        "Color": {"ColorSequence": {"keypoints": [
+                            {
+                                "time": 0.0,
+                                "color": [0.5, 0.7, 0.9]
+                            },
+                            {
+                                "time": 1.0,
+                                "color": [0.5, 0.7, 0.9]
+                            }
+                        ]}},
+                        "LightEmission": 1,
+                        "LightInfluence": 1,
+                        "Size": {"NumberSequence": {"keypoints": [
+                            {
+                                "time": 0.0,
+                                "value": 0.5,
+                                "envelope": 0.0
+                            },
+                            {
+                                "time": 1.0,
+                                "value": 0.0,
+                                "envelope": 0.0
+                            }
+                        ]}},
+                        "Texture": "rbxassetid://6479341134",
+                        "Transparency": {"NumberSequence": {"keypoints": [
+                            {
+                                "time": 0.0,
+                                "value": 0.25,
+                                "envelope": 0.0
+                            },
+                            {
+                                "time": 1.0,
+                                "value": 1.0,
+                                "envelope": 0.0
+                            }
+                        ]}},
+                        "ZOffset": 1,
+                        "Enabled": false,
+                        "Lifetime": {"NumberRange": [0.5, 0.5]},
+                        "Rate": 75,
+                        "Rotation": {"NumberRange": [-360, 360]},
+                        "RotSpeed": {"NumberRange": [-360, 360]},
+                        "Speed": {"NumberRange": [2, 2]},
+                        "SpreadAngle": [-360, 360]
+                    }
+                }
+            ]
+        },
+        {
+            "className": "Folder",
+            "name": "Sounds",
+            "children": [
+                {
+                    "className": "Sound",
+                    "name": "Grab",
+                    "properties": {
+                        "SoundId": "rbxassetid://12222054",
+                        "PlaybackSpeed": 1.2,
+                        "Volume": 0.4
+                    }
+                },
+                {
+                    "className": "Sound",
+                    "name": "Move",
+                    "properties": {
+                        "SoundId": "rbxassetid://6568052103",
+                        "Looped": true,
+                        "Volume": 0.1
+                    }
+                }
+            ]
         },
         {
             "className": "Part",
             "name": "SegmentPart",
             "properties": {
                 "Color": [0.5, 0.7, 0.9],
-                "Material": "Neon",
+                "Material": "SmoothPlastic",
                 "Transparency": 0,
-                "Size": [2, 0.1, 0.1],
-                "Position": [-17, 3, -15],
+                "Size": [2, 0.2, 0.2],
+                "Position": [-20, 3, -15],
                 "CanCollide": false,
                 "CanQuery": false,
                 "CanTouch": false,
@@ -36,11 +146,11 @@
             "className": "Part",
             "name": "WaypointPart",
             "properties": {
-                "Color": [0, 0.666667, 0.666667],
+                "Color": [0.5, 0.7, 0.9],
                 "Material": "Neon",
                 "Transparency": 0.6,
                 "Size": [2, 2, 2],
-                "Position": [-14, 3, -15],
+                "Position": [-17, 3, -15],
                 "CanCollide": false,
                 "CanTouch": false,
                 "Anchored": true,

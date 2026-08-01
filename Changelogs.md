@@ -2,8 +2,34 @@
 
 ## Futures plans
 
-- Endpoint reverse direction.
-- Particles & sound effects.
+- Attaching objects without waypoints.
+- Physics attributes.
+
+## [v0.3.0] Guide bar + FX particles & sounds + End reverse | 2026/08/01
+
+Added "guide bar" that acts as the midway connection between the guide part and riders.
+- Similar to the one in EToH Kit.
+
+Redone `Connect_ByRope` attribute to `Connect_UseWeld`.
+- A `RopeConstraint` will always be used to connect the guide bar to the guide part.
+- Enabling `Connect_UseWeld` will create an additional weld between the guide bar and the guide part.
+    - The guide bar will be `Connect_RopeLength` studs below the guide part (negative causes it to be above).
+
+Combined guide bar & guide part to be under `FXInfo.GuideTemplate`.
+- You can also configure the `RopeConstaint` here (e.g. color).
+
+Added effect particles and sounds, configured through `FXInfo.GuideParticles` and `FXInfo.Sounds`.
+- Similar to the one in EToH Kit.
+- Two sounds: `Grab` and `Move`.
+- Any `ParticleEmitters` under `GuideParticles` will be parented to the guide part when traversing.
+
+Added attribute `UserControl_Acceleration` for specifying the maximum acceleration when traversing through user control.
+
+Refactored `Dismount_ByEnd` attribute to `Dismount_ByBackwardsEnd` and `Dismount_ByForwardsEnd`.
+- Except for when using user controls, objects will always travel forward.
+
+Added attribute `End_ReverseDirection` for reversing an object's traverse direction when reaching an end.
+- If the end is going to dismount, the dismount will take place instead.
 
 ## [v0.2.3] Container mechanic + Ancestry check + Clean up | 2026/07/31 (4)
 

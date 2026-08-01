@@ -6,6 +6,7 @@
     "attributes": {
         "Hide_ControlPoints": true,
         "IsLooped": false,
-        "TraverseSpeed": 20
+        "TraverseSpeed": 32,
+        "UserControl_Acceleration": 32
     }
 }

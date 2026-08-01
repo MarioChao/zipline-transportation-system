@@ -20,23 +20,26 @@ ZiplineConfig:
 |:---:|:---:|:---|:---:|
 | Hide_ControlPoints | boolean | Whether control points are hidden. | true |
 | IsLooped | boolean | Whether the whole zipline forms a loop. | false |
-| TraverseSpeed | number | Speed of traversing the zipline. | 20 |
+| TraverseSpeed | number | Maximum speed when traversing the zipline. | 20 |
+| UserControl_Acceleration | number | Acceleration when traversing the zipline using user control. | 32 |
 
 RidersConfig:
 
 | Config | Type | Description | Default |
 |:---:|:---:|:---|:---:|
 | Allow_UserControl | boolean | Whether the player controls the movement on the zipline. | false |
-| Connect_ByRope | boolean | Whether objects are connected to the zipline through a `RopeConstraint` instead of a `WeldConstraint`. | false |
-| Connect_RopeLength | number | The length of the `RopeConstraint` connection. | 5 |
-| Dismount_ByEnd | boolean | Whether objects detach from the zipline when reaching an end. | true |
+| Connect_RopeLength | number | The length of the `RopeConstraint` connection. If using weld, this is the offset of guide bars below guide parts. | 5 |
+| Connect_UseWeld | boolean | Whether objects are connected to the zipline through `WeldConstraint` instead of a `RopeConstraint`. | false |
+| Dismount_ByBackwardsEnd | boolean | Whether objects detach from the zipline when reaching the backwards end. | false |
+| Dismount_ByForwardsEnd | boolean | Whether objects detach from the zipline when reaching the forwards end. | true |
 | Dismount_ByJump | boolean | Whether jumping detaches the player from the zipline. | false |
 | Dismount_KeepMomentum | boolean | Whether objects keep their momentum when detached. | false |
 | Dismount_WillJump | boolean | Whether the player will jump when dismounting. | true |
-| Offset_ClientPies | Vector3 | Offset of client pies relative to zipline when `Connect_ByRope` is false. | 0, 0, 0 |
-| Offset_Players | Vector3 | Offset of players relative to zipline when `Connect_ByRope` is false. | 0, -2, 0 |
-| Offset_Tagged | Vector3 | Offset of tagged objects relative to zipline when `Connect_ByRope` is false. | 0, 0, 0 |
-| Offset_Objects | Vector3 | Offset of other (server) objects relative to zipline when `Connect_ByRope` is false. | 0, 0, 0 |
+| End_ReverseDirection | boolean | Whether objects reverse direction when reaching an end. Only works if the end doesn't cause dismount. | false |
+| Offset_ClientPies | Vector3 | Offset of guide bar relative to client pies. | 0, 0, 0 |
+| Offset_Players | Vector3 | Offset of guide bar relative to players. | 0, 2, 0 |
+| Offset_Tagged | Vector3 | Offset of guide bar relative to tagged objects. | 0, 0, 0 |
+| Offset_Objects | Vector3 | Offset of guide bar relative to other (server) objects. | 0, 0, 0 |
 | StartDelay_ClientPies | number | Delay before client pies start traversing the zipline. | 0 |
 | StartDelay_Players | number | Delay before players start traversing the zipline. | 0 |
 | StartDelay_Tagged | number | Delay before tagged objects start traversing the zipline. | 0 |
@@ -63,7 +66,9 @@ FXInfo:
 
 | Config | Type | Description |
 |:---:|:---:|:---:|
-| GuidePart | Part | The template guiding part used when objects are traversing the zipline. |
+| GuideParticles | Folder | The template folder containing particle emitters used when traversing. |
+| GuideTemplate | Folder | The template folder containing the guide bar & the guide part. |
+| Sounds | Folder | The template folder containing sounds effects. |
 | SegmentPart | Part | The template part used when visualizing the zipline. |
 | WaypointPart | Part | The template part used when visualizing waypoints. |
 | WaypointProximityPrompt | ProximityPrompt | The template proximity prompt used for activating waypoints. |

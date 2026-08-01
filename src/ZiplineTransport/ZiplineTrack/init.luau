@@ -65,7 +65,9 @@ Constants.storedCollisionAttributeNames = {
 Constants.storedTransparencyAttributeName = "StoredTransparency"
 Constants.routeAlphaAttributeName = "RouteAlpha"
 
-Constants.guidePartTagName = "ZiplineGuidePart"
+Constants.defaultFXInfo = script:WaitForChild("DefaultFXInfo")
+
+Constants.guideInstanceTagName = "ZiplineGuideInstance"
 
 Constants.rotateXToZOffsetCFrame = CFrame.fromRotationBetweenVectors(Vector3.xAxis, Vector3.zAxis)
 
@@ -99,7 +101,7 @@ local createZiplineRouteWaypointsVFX
 local setUpZiplineRouteWaypoints
 
 local canMovePart
-local getIsGuidePart
+local getIsGuideInstance
 local getIsWaypointTouchThrottled
 local setWaypointTouchThrottle
 
@@ -187,9 +189,14 @@ processFXInfo = function(ziplineConfig: ZiplineConfig)
 
     -- Process parts
     local parts = {
-        fxInfo.guidePart, fxInfo.segmentPart, fxInfo.waypointPart
+        fxInfo.guideTemplate:FindFirstChild("GuideBar"), fxInfo.guideTemplate:FindFirstChild("GuidePart"),
+        fxInfo.segmentPart, fxInfo.waypointPart
     }
     for _, part in parts do
+        if not (part and part:IsA("BasePart")) then
+            continue
+        end
+
         -- Anchor
         part.Anchored = true
 
@@ -206,6 +213,16 @@ processFXInfo = function(ziplineConfig: ZiplineConfig)
         end
         UIUtil.setTransparency(part, 1)
     end
+
+    -- Process particles
+    for _, particle in fxInfo.guideParticles:GetChildren() do
+        if not particle:IsA("ParticleEmitter") then
+            continue
+        end
+
+        -- Disable
+        particle.Enabled = false
+    end
 end
 
 createZiplineRouteVisualizerVFX = function(ziplineConfig: ZiplineConfig, ziplineRoute: LinkedRoute)
@@ -216,7 +233,7 @@ createZiplineRouteVisualizerVFX = function(ziplineConfig: ZiplineConfig, zipline
 
     partsFolder, vfxInstances = SegmentedRoute.RouteUtil.Visualizer.createParts_connected_equalSteps(
         ziplineRoute, {templatePart = templatePart :: BasePart, colorRange = {templatePart.Color}},
-        0, 0.01
+        0, 0.05
     )
 
     -- Make sure visualized parts are not collidable
@@ -346,7 +363,7 @@ setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: Ziplin
                         local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
                         local isValidPart = ziplineConfig.ridersConfig.support_players and isPlayer
                         if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
-                            onTouchedZipline(part, i, ziplineConfig, ziplineGroup)
+                            onTouchedZipline(part, i, ziplineConfig, ziplineGroup, false)
                         end
                     end
                 end))
@@ -367,8 +384,8 @@ canMovePart = function(part: BasePart)
     return result == true
 end
 
-getIsGuidePart = function(part: BasePart)
-    return part:HasTag(Constants.guidePartTagName)
+getIsGuideInstance = function(part: BasePart)
+    return part:HasTag(Constants.guideInstanceTagName)
 end
 
 getIsWaypointTouchThrottled = function(ziplineGroup: ZiplineGroupInfo, waypointId: number, part: BasePart)
@@ -430,7 +447,7 @@ checkZiplineTouchedLoop = function(container: Instance, ziplineConfig: ZiplineCo
             local isValidPart = true
 
             -- Ensure valid part
-            isValidPart = isValidPart and not getIsGuidePart(part)
+            isValidPart = isValidPart and not getIsGuideInstance(part)
             isValidPart = isValidPart and getIsActiveWaypoint(waypointId, ziplineConfig, #ziplineGroup.waypointInstances)
             isValidPart = isValidPart and isValidPart_function(part, ziplineConfig)
 
@@ -447,21 +464,21 @@ checkZiplineTouchedLoop = function(container: Instance, ziplineConfig: ZiplineCo
 
             -- Run touched
             if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
-                onTouchedZipline(part, waypointId, ziplineConfig, ziplineGroup)
+                onTouchedZipline(part, waypointId, ziplineConfig, ziplineGroup, true)
             end
         end
     end
     waypointQueryPart:Destroy()
 end
 
-onTouchedZipline = function(part: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo)
+onTouchedZipline = function(part: BasePart, startWaypointId: number, ziplineConfig: ZiplineConfig, ziplineGroup: ZiplineGroupInfo, checkTouchThrottle: boolean)
     local assemblyRootPart = part.AssemblyRootPart
     local isValid
 
     -- Validate touched part
     isValid = canMovePart(assemblyRootPart)
     isValid = isValid and not Globals.assemblyRootPart_inZipline[assemblyRootPart]
-    isValid = isValid and not getIsWaypointTouchThrottled(ziplineGroup, startWaypointId, assemblyRootPart)
+    isValid = isValid and not (checkTouchThrottle and getIsWaypointTouchThrottled(ziplineGroup, startWaypointId, assemblyRootPart))
 
     -- Traverse
     if isValid then
@@ -533,6 +550,15 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
         isPositiveDirection = waypointPositiveDirection:Dot(rootPartVelocityDirection) >= waypointNegativeDirection:Dot(rootPartVelocityDirection)
     end
 
+    -- Play grab sound
+    local grabSound = ziplineConfig.fxInfo.sounds.grab:Clone()
+    grabSound.Looped = false
+    grabSound.Parent = ziplineGroup.waypointInstances[startWaypointId]
+    grabSound:Play()
+    grabSound.Ended:Once(function()
+        grabSound:Destroy()
+    end)
+
     -- Traverse
     local startAlpha = getWaypointAlpha(ziplineGroup.waypointInstances[startWaypointId])
     traverseAlongZiplineWithDirection(rootPart, startAlpha, ziplineConfig, ziplineGroup, isPositiveDirection)
@@ -545,6 +571,7 @@ traverseAlongZipline = function(rootPart: BasePart, startWaypointId: number, zip
     -- Dismount: keep momentum
     if not ziplineConfig.ridersConfig.dismount_keepMomentum then
         rootPart.AssemblyLinearVelocity = Vector3.zero
+        rootPart.AssemblyAngularVelocity = Vector3.zero
     end
 
     -- Dismount: will jump
@@ -614,26 +641,26 @@ getTraverseZiplineOffset = function(rootPart: BasePart, ziplineConfig: ZiplineCo
 end
 
 getNextRouteAlpha = function(
-    currentAlpha: number, velocitySign: number, reparameterization_function: (number, boolean, boolean?) -> number,
+    currentAlpha: number, reparameterization_function: (number, boolean, boolean?) -> number,
     isLooped: boolean,
-    traverseSpeed: number, deltaTime: number,
+    traverseVelocity: number, deltaTime: number,
     routeDistanceRange: NumberRange
 )
     local routeAlpha = currentAlpha
-    if velocitySign ~= 0 then
-        local routeDistance = reparameterization_function(routeAlpha, false)
-        local deltaDistance = deltaTime * traverseSpeed * velocitySign
-        routeDistance += deltaDistance
+    if traverseVelocity ~= 0 then
+        local initialRouteDistance = reparameterization_function(routeAlpha, false)
+        local deltaDistance = traverseVelocity * deltaTime
+        local nextRouteDistance = initialRouteDistance + deltaDistance
 
         -- Resolve looped
         if isLooped then
-            if routeDistance < routeDistanceRange.Min or routeDistance > routeDistanceRange.Max then
+            if nextRouteDistance < routeDistanceRange.Min or nextRouteDistance > routeDistanceRange.Max then
                 local rangeScalar = routeDistanceRange.Max - routeDistanceRange.Min
-                routeDistance = (routeDistance - routeDistanceRange.Min) % rangeScalar + routeDistanceRange.Min
+                nextRouteDistance = (nextRouteDistance - routeDistanceRange.Min) % rangeScalar + routeDistanceRange.Min
             end
         end
 
-        routeAlpha = reparameterization_function(routeDistance, true)
+        routeAlpha = reparameterization_function(nextRouteDistance, true)
     end
     return routeAlpha
 end
@@ -645,26 +672,48 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
         return
     end
 
+    -- Clone guide template
+    local guideTemplate = ziplineConfig.fxInfo.guideTemplate:Clone()
+
     -- Create guide part
     local startPosition = ziplineGroup.route:getPositionAtAlpha(startAlpha)
     local startLookVector = ziplineGroup.route:getPositiveDirectionAtAlpha(startAlpha)
     local startLookCFrame = CFrame.lookAlong(startPosition, startLookVector)
     local startRightCFrame = startLookCFrame:ToWorldSpace(Constants.rotateXToZOffsetCFrame)
-    local guidePart = ziplineConfig.fxInfo.guidePart:Clone()
-    guidePart:AddTag(Constants.guidePartTagName)
+    local guidePart = guideTemplate:FindFirstChild("GuidePart") or Constants.defaultFXInfo:WaitForChild("GuideTemplate"):WaitForChild("GuidePart")
+    guidePart:AddTag(Constants.guideInstanceTagName)
     guidePart:PivotTo(startRightCFrame)
     UIUtil.resetTransparency(guidePart)
     guidePart.Parent = ziplineGroup.extraFXFolder
 
-    -- Create constraints
+    -- Create guide bar
+    local guideBar = guideTemplate:FindFirstChild("GuideBar") or Constants.defaultFXInfo:WaitForChild("GuideTemplate"):WaitForChild("GuideBar")
+    guideBar:AddTag(Constants.guideInstanceTagName)
+    UIUtil.resetTransparency(guideBar)
+    guideBar.Anchored = false
+    guideBar.Parent = ziplineGroup.extraFXFolder
+
+    -- Create constraints: guide bar - root part
     local constraintInstances = {} :: {Instance}
-    if ziplineConfig.ridersConfig.connect_byRope then
+    do
+        local rootPartCFrame = rootPart.CFrame
+        local offset = getTraverseZiplineOffset(rootPart, ziplineConfig)
+        local constraint = Instance.new("WeldConstraint")
+        guideBar:PivotTo((rootPartCFrame.Rotation + rootPartCFrame:PointToWorldSpace(offset)):ToWorldSpace(Constants.rotateXToZOffsetCFrame))
+        constraint.Part0 = guideBar
+        constraint.Part1 = rootPart
+        constraint.Parent = guideBar
+        table.insert(constraintInstances, constraint)
+    end
+
+    -- Create constraints: guide part - guide bar
+    do
         local attachment0 = Instance.new("Attachment")
         local attachment1 = Instance.new("Attachment")
-        local constraint = Instance.new("RopeConstraint")
+        local constraint = guideBar:FindFirstChildWhichIsA("RopeConstraint") or Instance.new("RopeConstraint")
         attachment0.Parent = guidePart
-        attachment1.Parent = rootPart
-        constraint.Length = ziplineConfig.ridersConfig.connect_ropeLength
+        attachment1.Parent = guideBar
+        constraint.Length = math.abs(ziplineConfig.ridersConfig.connect_ropeLength)
         constraint.Attachment0 = attachment0
         constraint.Attachment1 = attachment1
         constraint.Parent = guidePart
@@ -672,20 +721,39 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
         table.insert(constraintInstances, attachment0)
         table.insert(constraintInstances, attachment1)
         table.insert(constraintInstances, constraint)
-    else
-        local offset = getTraverseZiplineOffset(rootPart, ziplineConfig)
+    end
+    if ziplineConfig.ridersConfig.connect_useWeld then
+        guideBar:PivotTo(guidePart.CFrame - Vector3.new(0, ziplineConfig.ridersConfig.connect_ropeLength, 0))
         local constraint = Instance.new("WeldConstraint")
-        rootPart:PivotTo(startLookCFrame.Rotation + startLookCFrame:PointToWorldSpace(offset))
-        constraint.Part0 = guidePart
-        constraint.Part1 = rootPart
-        constraint.Parent = guidePart
+        constraint.Part0 = guideBar
+        constraint.Part1 = guidePart
+        constraint.Parent = guideBar
         table.insert(constraintInstances, constraint)
     end
+
+    -- Create guide particles
+    local guideParticleEmitters = {}
+    for _, particle in ziplineConfig.fxInfo.guideParticles:GetChildren() do
+        if particle:IsA("ParticleEmitter") then
+            local newParticle = particle:Clone()
+            newParticle.Enabled = false
+            newParticle.Parent = guidePart
+            table.insert(guideParticleEmitters, newParticle)
+        else
+            warn(`[Zipline Track]: Found '{particle}' (\`{particle.ClassName}\`) under particles folder. Only \`ParticleEmitters\` will show up when traversing.`)
+        end
+    end
+
+    -- Create guide sounds
+    local moveSound = ziplineConfig.fxInfo.sounds.move:Clone()
+    moveSound.Looped = true
+    moveSound.Parent = guidePart
 
     -- Traverse info
     local waypointCount = #ziplineGroup.waypointInstances
     local routeAlphaRange = ziplineGroup.route:getAlphaRange()
-    local traverseSpeed = ziplineConfig.traverseSpeed
+    local maxTraverseAcceleration = math.abs(ziplineConfig.userControl_traverseAcceleration)
+    local maxTraverseSpeed = math.abs(ziplineConfig.traverseSpeed)
     local baseVelocitySign = if isPositiveDirection then 1 else -1
 
     -- Player info
@@ -743,11 +811,18 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
         end
     end
 
+    -- Get current speed
+    local useAcceleration = RunService:IsClient() and isPlayer and ziplineConfig.ridersConfig.allow_userControl
+    local currentTraverseVelocity = maxTraverseSpeed
+    if useAcceleration then
+        currentTraverseVelocity = 0
+    end
+
     -- Traverse
     local routeAlpha = startAlpha
+    local previousRouteDistance
     local previousTime
-    local previousTraversePosition
-    local previousTraverseOrientation
+    local previousTraverseLookCFrame
     while true do
         -- Validate exist
         if not rootPart:IsDescendantOf(workspace) then
@@ -783,23 +858,49 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
             end
         end
 
-        -- Update route alpha
+        -- Calculate new traverse velocity
+        local targetTraverseVelocity = maxTraverseSpeed * velocitySign
         local currentTime = time()
-        if previousTime then
+        local timeChange = currentTime - (previousTime or currentTime)
+        if useAcceleration then
+            if timeChange > 0 then
+                local velocityError = targetTraverseVelocity - currentTraverseVelocity
+                local maxDeltaVelocity = math.abs(velocityError)
+                local deltaTraverseVelocity = maxTraverseAcceleration * timeChange * math.sign(velocityError)
+                deltaTraverseVelocity = math.clamp(deltaTraverseVelocity, -maxDeltaVelocity, maxDeltaVelocity)
+                currentTraverseVelocity += deltaTraverseVelocity
+                currentTraverseVelocity = math.clamp(currentTraverseVelocity, -maxTraverseSpeed, maxTraverseSpeed)
+                if math.abs(currentTraverseVelocity) < 1e-6 then
+                    currentTraverseVelocity = 0
+                end
+            end
+        else
+            currentTraverseVelocity = targetTraverseVelocity
+        end
+
+        -- Update route alpha
+        if timeChange > 0 then
             routeAlpha = getNextRouteAlpha(
-                routeAlpha, velocitySign, reparameterization_function,
+                routeAlpha, reparameterization_function,
                 ziplineConfig.isLooped,
-                traverseSpeed, currentTime - previousTime,
+                currentTraverseVelocity, timeChange,
                 routeDistanceRange
             )
         end
 
+        -- Calculate end information
+        local isReachedEnd = routeAlpha > routeAlphaRange.Max or routeAlpha < routeAlphaRange.Min
+
+        -- Calculate moving direction
+        local isMovingForwards = math.sign(currentTraverseVelocity) == baseVelocitySign
+        local isMovingBackwards = math.sign(currentTraverseVelocity) == -baseVelocitySign
+
         -- Resolve dismount: by end
-        if ziplineConfig.ridersConfig.dismount_byEnd and not ziplineConfig.isLooped then
-            local isEnd = false
-            isEnd = isEnd or (isPositiveDirection and routeAlpha > routeAlphaRange.Max)
-            isEnd = isEnd or (not isPositiveDirection and routeAlpha < routeAlphaRange.Min)
-            if isEnd then
+        if not ziplineConfig.isLooped and isReachedEnd then
+            if ziplineConfig.ridersConfig.dismount_byForwardsEnd and isMovingForwards then
+                break
+            end
+            if ziplineConfig.ridersConfig.dismount_byBackwardsEnd and isMovingBackwards then
                 break
             end
         end
@@ -817,34 +918,61 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
             end
         end
 
+        -- Resolve end: reverse direction
+        local isReversingDirection = false
+        if not ziplineConfig.isLooped and ziplineConfig.ridersConfig.end_reverseDirection and isReachedEnd then
+            if isMovingBackwards or isMovingForwards then
+                isReversingDirection = true
+                baseVelocitySign *= -1
+            end
+        end
+
         -- Clamp route alpha
         routeAlpha = math.clamp(routeAlpha, routeAlphaRange.Min, routeAlphaRange.Max)
+
+        -- Calculate new traverse velocity
+        local routeDistance = reparameterization_function(routeAlpha, false)
+        if timeChange > 0 then
+            if isReversingDirection then
+                currentTraverseVelocity *= -1
+            else
+                currentTraverseVelocity = (routeDistance - previousRouteDistance) / timeChange
+            end
+        end
+
+        -- Resolve moving: traverse sound
+        local isMoving = currentTraverseVelocity ~= 0
+        if isMoving ~= moveSound.IsPlaying then
+            if isMoving then
+                moveSound:Play()
+            else
+                moveSound:Stop()
+            end
+        end
+
+        -- Resolve moving: particles
+        for _, particle in guideParticleEmitters do
+            if isMoving ~= particle.Enabled then
+                particle.Enabled = isMoving
+            end
+        end
 
         -- Calculate traverse position
         local traversePosition = ziplineGroup.route:getPositionAtAlpha(routeAlpha, true)
 
-        -- Calculate traverse velocity vector
-        local traverseVelocity = Vector3.zero
-        if previousTime and previousTraversePosition then
-            local positionChange = traversePosition - previousTraversePosition
-            local timeChange = currentTime - previousTime
-            traverseVelocity = positionChange / timeChange
-        end
-
-        -- Calculate traverse orientation
+        -- Calculate traverse cframe
         local baseTraverseDirection = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha, true) * baseVelocitySign
         local traverseLookCFrame = CFrame.lookAlong(traversePosition, baseTraverseDirection)
-        local traverseOrientation
-        do
-            local rx, ry, rz = traverseLookCFrame:ToOrientation()
-            traverseOrientation = Vector3.new(rx, ry, rz)
-        end
 
-        -- Calculate traverse angular velocity vector
+        -- Calculate traverse velocity & angular velocity vector
+        local traverseVelocity = Vector3.zero
         local traverseAngularVelocity = Vector3.zero
-        if previousTime and previousTraverseOrientation then
-            local orientationChange = traverseOrientation - previousTraverseOrientation
-            local timeChange = currentTime - previousTime
+        if timeChange > 0 and previousTraverseLookCFrame then
+            local positionChange = traverseLookCFrame.Position - previousTraverseLookCFrame.Position
+            local cframeOffset = previousTraverseLookCFrame:ToObjectSpace(traverseLookCFrame) :: CFrame
+            local rx, ry, rz = cframeOffset:ToOrientation()
+            local orientationChange = Vector3.new(rx, ry, rz)
+            traverseVelocity = positionChange / timeChange
             traverseAngularVelocity = orientationChange / timeChange
         end
 
@@ -859,16 +987,20 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
         task.wait()
 
         -- Update state
+        previousRouteDistance = routeDistance
         previousTime = currentTime
-        previousTraversePosition = traversePosition
-        previousTraverseOrientation = traverseOrientation
+        previousTraverseLookCFrame = traverseLookCFrame
     end
 
     -- Clean up
     alignPosition:Destroy()
     alignAttachment:Destroy()
     guidePart:Destroy()
+    guideBar:Destroy()
     for _, instance in constraintInstances do
+        instance:Destroy()
+    end
+    for _, instance in guideParticleEmitters do
         instance:Destroy()
     end
 end

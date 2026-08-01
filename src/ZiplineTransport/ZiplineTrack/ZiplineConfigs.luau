@@ -5,21 +5,30 @@
 
 ---------- Types ----------
 
+type FXSounds = {
+    grab: Sound,
+    move: Sound,
+}
+
 type FXInfo = {
-    guidePart: BasePart,
+    guideParticles: typeof(script.Parent.DefaultFXInfo.GuideParticles),
+    guideTemplate: typeof(script.Parent.DefaultFXInfo.GuideTemplate),
+    sounds: FXSounds,
     segmentPart: BasePart,
     waypointPart: BasePart,
-    waypointProximityPrompt: ProximityPrompt
+    waypointProximityPrompt: ProximityPrompt,
 }
 
 type RidersConfig = {
     allow_userControl: boolean,
-    connect_byRope: boolean,
     connect_ropeLength: number,
-    dismount_byEnd: boolean,
+    connect_useWeld: boolean,
+    dismount_byBackwardsEnd: boolean,
+    dismount_byForwardsEnd: boolean,
     dismount_byJump: boolean,
     dismount_keepMomentum: boolean,
     dismount_willJump: boolean,
+    end_reverseDirection: boolean,
     offset_clientPies: Vector3,
     offset_objects: Vector3,
     offset_players: Vector3,
@@ -49,6 +58,7 @@ export type ZiplineConfig = {
     hide_controlPoints: boolean,
     isLooped: boolean,
     traverseSpeed: number,
+    userControl_traverseAcceleration: number,
     ridersConfig: RidersConfig,
     waypointsConfig: WaypointsConfig,
     fxInfo: FXInfo,
@@ -61,12 +71,14 @@ local Constants = {}
 
 Constants.ridersConfigAttributes = {
     allow_userControl = "Allow_UserControl",
-    connect_byRope = "Connect_ByRope",
     connect_ropeLength = "Connect_RopeLength",
-    dismount_byEnd = "Dismount_ByEnd",
+    connect_useWeld = "Connect_UseWeld",
+    dismount_byBackwardsEnd = "Dismount_ByBackwardsEnd",
+    dismount_byForwardsEnd = "Dismount_ByForwardsEnd",
     dismount_byJump = "Dismount_ByJump",
     dismount_keepMomentum = "Dismount_KeepMomentum",
     dismount_willJump = "Dismount_WillJump",
+    end_reverseDirection = "End_ReverseDirection",
     offset_clientPies = "Offset_ClientPies",
     offset_objects = "Offset_Objects",
     offset_players = "Offset_Players",
@@ -95,20 +107,33 @@ Constants.waypointsConfigAttributes = {
 Constants.ziplineConfigAttributes = {
     hide_controlPoints = "Hide_ControlPoints",
     isLooped = "IsLooped",
+    userControl_traverseAcceleration = "UserControl_TraverseAcceleration",
     traverseSpeed = "TraverseSpeed",
 }
 
 Constants.fxInfoNames = {
-    guidePart = "GuidePart",
+    guideParticles = "GuideParticles",
+    guideTemplate = "GuideTemplate",
     segmentPart = "SegmentPart",
     waypointPart = "WaypointPart",
     waypointProximityPrompt = "WaypointProximityPrompt",
 }
 
+Constants.fxSoundsNames = {
+    grab = "Grab",
+    move = "Move",
+}
+
 do
     local defaultFXInfo = script.Parent:WaitForChild("DefaultFXInfo")
+    local soundsFolder = defaultFXInfo:WaitForChild("Sounds")
     Constants.defaultFXInfo = {
-        guidePart = defaultFXInfo:WaitForChild(Constants.fxInfoNames.guidePart),
+        guideParticles = defaultFXInfo:WaitForChild(Constants.fxInfoNames.guideParticles),
+        guideTemplate = defaultFXInfo:WaitForChild(Constants.fxInfoNames.guideTemplate),
+        sounds = {
+            grab = soundsFolder:WaitForChild(Constants.fxSoundsNames.grab),
+            move = soundsFolder:WaitForChild(Constants.fxSoundsNames.move),
+        },
         segmentPart = defaultFXInfo:WaitForChild(Constants.fxInfoNames.segmentPart),
         waypointPart = defaultFXInfo:WaitForChild(Constants.fxInfoNames.waypointPart),
         waypointProximityPrompt = defaultFXInfo:WaitForChild(Constants.fxInfoNames.waypointProximityPrompt),
@@ -176,7 +201,8 @@ getZiplineConfig = function(configInstance: Configuration?)
     local result = {
         hide_controlPoints = getDefault_boolean(realConfig:GetAttribute(Constants.ziplineConfigAttributes.hide_controlPoints), true),
         isLooped = getDefault_boolean(realConfig:GetAttribute(Constants.ziplineConfigAttributes.isLooped), false),
-        traverseSpeed = getDefault_number(realConfig:GetAttribute(Constants.ziplineConfigAttributes.traverseSpeed), 20),
+        traverseSpeed = getDefault_number(realConfig:GetAttribute(Constants.ziplineConfigAttributes.traverseSpeed), 32),
+        userControl_traverseAcceleration = getDefault_number(realConfig:GetAttribute(Constants.ziplineConfigAttributes.userControl_traverseAcceleration), 32),
     } :: ZiplineConfig
 
     -- Riders config
@@ -197,15 +223,17 @@ getRidersConfig = function(configInstance: Configuration?)
 
     local result = {
         allow_userControl = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.allow_userControl), false),
-        connect_byRope = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.connect_byRope), false),
         connect_ropeLength = getDefault_number(realConfig:GetAttribute(Constants.ridersConfigAttributes.connect_ropeLength), 5),
-        dismount_byEnd = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_byEnd), true),
+        connect_useWeld = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.connect_useWeld), false),
+        dismount_byBackwardsEnd = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_byBackwardsEnd), false),
+        dismount_byForwardsEnd = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_byForwardsEnd), true),
         dismount_byJump = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_byJump), false),
         dismount_keepMomentum = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_keepMomentum), false),
         dismount_willJump = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.dismount_willJump), true),
+        end_reverseDirection = getDefault_boolean(realConfig:GetAttribute(Constants.ridersConfigAttributes.end_reverseDirection), false),
         offset_clientPies = getDefault_vector3(realConfig:GetAttribute(Constants.ridersConfigAttributes.offset_clientPies), Vector3.zero),
         offset_objects = getDefault_vector3(realConfig:GetAttribute(Constants.ridersConfigAttributes.offset_objects), Vector3.zero),
-        offset_players = getDefault_vector3(realConfig:GetAttribute(Constants.ridersConfigAttributes.offset_players), Vector3.new(0, -2, 0)),
+        offset_players = getDefault_vector3(realConfig:GetAttribute(Constants.ridersConfigAttributes.offset_players), Vector3.new(0, 2, 0)),
         offset_tagged = getDefault_vector3(realConfig:GetAttribute(Constants.ridersConfigAttributes.offset_tagged), Vector3.zero),
         startDelay_clientPies = getDefault_number(realConfig:GetAttribute(Constants.ridersConfigAttributes.startDelay_clientPies), 0),
         startDelay_objects = getDefault_number(realConfig:GetAttribute(Constants.ridersConfigAttributes.startDelay_objects), 0),
@@ -237,9 +265,15 @@ end
 
 getFXInfo = function(configFolder: Folder?)
     local realConfig = configFolder or Instance.new("Folder")
+    local soundsFolder = realConfig:FindFirstChild("Sounds") or Instance.new("Folder")
 
     local result = {
-        guidePart = getDefault_childInstance(realConfig, Constants.fxInfoNames.guidePart, Constants.defaultFXInfo.guidePart, "BasePart") :: BasePart,
+        guideParticles = getDefault_childInstance(realConfig, Constants.fxInfoNames.guideParticles, Constants.defaultFXInfo.guideParticles, "Folder") :: Folder,
+        guideTemplate = getDefault_childInstance(realConfig, Constants.fxInfoNames.guideTemplate, Constants.defaultFXInfo.guideTemplate, "Folder") :: Folder,
+        sounds = {
+            grab = getDefault_childInstance(soundsFolder, Constants.fxSoundsNames.grab, Constants.defaultFXInfo.sounds.grab, "Sound") :: Sound,
+            move = getDefault_childInstance(soundsFolder, Constants.fxSoundsNames.move, Constants.defaultFXInfo.sounds.move, "Sound") :: Sound,
+        },
         segmentPart = getDefault_childInstance(realConfig, Constants.fxInfoNames.segmentPart, Constants.defaultFXInfo.segmentPart, "BasePart") :: BasePart,
         waypointPart = getDefault_childInstance(realConfig, Constants.fxInfoNames.waypointPart, Constants.defaultFXInfo.waypointPart, "BasePart") :: BasePart,
         waypointProximityPrompt = getDefault_childInstance(realConfig, Constants.fxInfoNames.waypointProximityPrompt, Constants.defaultFXInfo.waypointProximityPrompt, "ProximityPrompt") :: ProximityPrompt,
