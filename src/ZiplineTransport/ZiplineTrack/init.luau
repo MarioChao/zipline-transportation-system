@@ -371,7 +371,7 @@ setUpZiplineRouteWaypoints = function(container: Instance, ziplineConfig: Ziplin
                         local rootPart = part.AssemblyRootPart
                         local isPlayer = Players:GetPlayerFromCharacter(rootPart and rootPart.Parent)
                         local isValidPart = ziplineConfig.ridersConfig.support_players and isPlayer
-                        if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
+                        if isValidPart then
                             attachToZiplineAtWaypoint(part, i, ziplineConfig, ziplineGroup, false)
                         end
                     end
@@ -468,8 +468,8 @@ checkZiplineTouchedIteration = function(container: Instance, ziplineConfig: Zipl
                 isValidPart = isValidPart and ziplineConfig.ridersConfig.support_objects
             end
 
-            -- Run touched
-            if isValidPart and (part.Parent and part.Parent.Parent) ~= container then
+            -- Attach to zipline
+            if isValidPart then
                 attachToZiplineAtWaypoint(part, waypointId, ziplineConfig, ziplineGroup, true)
             end
         end

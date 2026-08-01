@@ -2,7 +2,7 @@
 name = "mariochao/zipline-transportation-system"
 description = "A simple zipline/conduit system that carries objects through a series of waypoints."
 
-version = "0.4.0"
+version = "0.4.1"
 license = "MIT"
 authors = ["Mario Chao"]
 realm = "shared"

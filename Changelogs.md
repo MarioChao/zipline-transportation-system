@@ -4,6 +4,10 @@
 
 - TBD.
 
+## [v0.4.1] Container valid part fix | 2026/08/01 (3)
+
+Fixed objects with `.Parent.Parent` being the zipline group container not able to be transported on touch.
+
 ## [v0.4.0] Attaching objects + Physics attributes | 2026/08/01 (2)
 
 Added new `AttachedObjects` folder under `ZiplineGroup`.
