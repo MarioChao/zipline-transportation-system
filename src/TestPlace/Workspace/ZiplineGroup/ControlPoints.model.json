@@ -96,54 +96,6 @@
                     }
                 }
             ]
-        },
-        {
-            "className": "Part",
-            "name": "005",
-            "properties": {
-                "Color": [0.666667, 0, 0.666667],
-                "Material": "Neon",
-                "Transparency": 0.6,
-                "Size": [2, 2, 2],
-                "Position": [-20, 3, -10],
-                "CanCollide": false,
-                "CanTouch": false,
-                "Anchored": true,
-                "Shape": "Ball"
-            },
-            "children": [
-                {
-                    "className": "Configuration",
-                    "name": "ControlPointConfig",
-                    "attributes": {
-                        "IsBezierControlPoint": true
-                    }
-                }
-            ]
-        },
-        {
-            "className": "Part",
-            "name": "006",
-            "properties": {
-                "Color": [0.666667, 0, 0.666667],
-                "Material": "Neon",
-                "Transparency": 0.6,
-                "Size": [2, 2, 2],
-                "Position": [-40, 3, -10],
-                "CanCollide": false,
-                "CanTouch": false,
-                "Anchored": true,
-                "Shape": "Ball"
-            },
-            "children": [
-                {
-                    "className": "Configuration",
-                    "name": "ControlPointConfig",
-                    "attributes": {
-                        "IsBezierControlPoint": false
-                    }
-                }
-            ]
         }
     ]
 }

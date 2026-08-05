@@ -898,12 +898,15 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
     if useAcceleration then
         currentTraverseVelocity = 0
     end
+    local useWait = not useAcceleration
 
     -- Traverse
     local routeAlpha = startAlpha
     local previousRouteDistance
     local previousTime
     local previousTraverseLookCFrame
+    local waitTimeEnd = time() - 1
+    local waitAtRouteDistance = 0
     while true do
         -- Validate exist
         if not rootPart:IsDescendantOf(workspace) then
@@ -939,6 +942,7 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
             end
         end
 
+
         -- Calculate new traverse velocity
         local targetTraverseVelocity = maxTraverseSpeed * velocitySign
         local currentTime = time()
@@ -959,6 +963,13 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
             currentTraverseVelocity = targetTraverseVelocity
         end
 
+        -- Resolve traverse velocity for wait time
+        if useWait then
+            if currentTime < waitTimeEnd then
+                currentTraverseVelocity = 0
+            end
+        end
+        
         -- Update route alpha
         if timeChange > 0 then
             routeAlpha = getNextRouteAlpha(
@@ -968,6 +979,9 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
                 routeDistanceRange
             )
         end
+
+        -- Calculate corresponding route distance
+        local routeDistance = reparameterization_function(routeAlpha, false)
 
         -- Calculate end information
         local isReachedEnd = routeAlpha > routeAlphaRange.Max or routeAlpha < routeAlphaRange.Min
@@ -1003,16 +1017,38 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
         local isReversingDirection = false
         if not ziplineConfig.isLooped and ziplineConfig.ridersConfig.end_reverseDirection and isReachedEnd then
             if isMovingBackwards or isMovingForwards then
+                -- Reverse traverse direction
                 isReversingDirection = true
                 baseVelocitySign *= -1
+
+                -- Calculate clamped route distance
+                local clampedRouteDistance = math.clamp(routeDistance, routeDistanceRange.Min, routeDistanceRange.Max)
+
+                -- Correct overshoot distance
+                if routeDistance > routeDistanceRange.Max then
+                    routeDistance = routeDistanceRange.Max - (routeDistance - routeDistanceRange.Max)
+                elseif routeDistance < routeDistanceRange.Min then
+                    routeDistance = routeDistanceRange.Min + (routeDistanceRange.Min - routeDistance)
+                end
+
+                -- Calculate corresponding route alpha
+                routeAlpha = reparameterization_function(routeDistance, true)
+
+                -- Calculate wait information
+                waitTimeEnd = currentTime + ziplineConfig.ridersConfig.end_reverseWaitTime
+                if ziplineConfig.ridersConfig.end_reverseWaitSnapToEnd then
+                    waitAtRouteDistance = clampedRouteDistance
+                else
+                    waitAtRouteDistance = routeDistance
+                end
             end
         end
 
         -- Clamp route alpha
         routeAlpha = math.clamp(routeAlpha, routeAlphaRange.Min, routeAlphaRange.Max)
+        routeDistance = reparameterization_function(routeAlpha, false)
 
         -- Calculate new traverse velocity
-        local routeDistance = reparameterization_function(routeAlpha, false)
         if timeChange > 0 then
             if isReversingDirection then
                 currentTraverseVelocity *= -1
@@ -1044,11 +1080,21 @@ traverseAlongZiplineWithDirection = function(rootPart: BasePart, startAlpha: num
             end
         end
 
+        -- Calculate actual route alpha
+        local actualRouteAlpha = routeAlpha
+
+        -- Resolve actual alpha for wait time
+        if useWait then
+            if currentTime < waitTimeEnd then
+                actualRouteAlpha = reparameterization_function(waitAtRouteDistance, true)
+            end
+        end
+
         -- Calculate traverse position
-        local traversePosition = ziplineGroup.route:getPositionAtAlpha(routeAlpha, true)
+        local traversePosition = ziplineGroup.route:getPositionAtAlpha(actualRouteAlpha, true)
 
         -- Calculate traverse cframe
-        local baseTraverseDirection = ziplineGroup.route:getPositiveDirectionAtAlpha(routeAlpha, true) * baseVelocitySign
+        local baseTraverseDirection = ziplineGroup.route:getPositiveDirectionAtAlpha(actualRouteAlpha, true) * baseVelocitySign
         local traverseLookCFrame = CFrame.lookAlong(traversePosition, baseTraverseDirection)
 
         -- Calculate traverse velocity & angular velocity vector

@@ -40,6 +40,8 @@ RidersConfig:
 | Enable_AngularVelocity | boolean | Whether the guide part will have angular velocity physics. | true |
 | Enable_LinearVelocity | boolean | Whether the guide part will have linear velocity physics. | true |
 | End_ReverseDirection | boolean | Whether objects reverse direction when reaching an end. Only works if the end doesn't cause dismount. | false |
+| End_ReverseWaitSnapToEnd | boolean | Whether objects snap to the endpoints when waiting before traversing in the reversed direction. | true |
+| End_ReverseWaitTime | number | How long objects wait before traversing in the reversed direction. This doesn't apply during user control. | 1 |
 | Offset_ClientPies | Vector3 | Offset of guide bar relative to client pies. | 0, 0, 0 |
 | Offset_Players | Vector3 | Offset of guide bar relative to players. | 0, 2, 0 |
 | Offset_Tagged | Vector3 | Offset of guide bar relative to tagged objects. | 0, 0, 0 |

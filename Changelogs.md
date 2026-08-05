@@ -4,6 +4,14 @@
 
 - TBD.
 
+## [v0.5.0] Major desync fix + End reverse wait | 2026/08/05
+
+Fixed major desync for end-reverse ziplines.
+- Instead of clamping the overshoot distance from an end point, we invert the overshoot.
+
+Added RidersConfig attribute `End_ReverseWaitSnapToEnd` and `End_ReverseWaitTime`.
+- When objects reach a reversible end, they can wait for a specified amount of time before starting the reversed traversal.
+
 ## [v0.4.2] Loop fix + Same attached fix + Smooth loop | 2026/08/01 (4)
 
 Fixed oscillation at loop when traversing.

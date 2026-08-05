@@ -12,6 +12,8 @@
         "Enable_AngularVelocity": true,
         "Enable_LinearVelocity": true,
         "End_ReverseDirection": false,
+        "End_ReverseWaitSnapToEnd": true,
+        "End_ReverseWaitTime": 1,
         "Offset_ClientPies": {"Vector3": [0, 0, 0]},
         "Offset_Objects": {"Vector3": [0, 0, 0]},
         "Offset_Players": {"Vector3": [0, 2, 0]},
