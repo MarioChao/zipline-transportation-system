@@ -27,14 +27,6 @@ Constants.ziplineConfigTag = "ZiplineConfig"
 table.freeze(Constants)
 
 
----------- Globals ----------
-
-local Globals = {}
-
-Globals.container_ancestryChangedConnection = {} :: {[Instance]: RBXScriptConnection}
-Globals.container_isUnderWorkspace = {} :: {[Instance]: boolean?}
-
-
 ---------- Local functions ----------
 
 local isValidPart_function
@@ -60,27 +52,7 @@ getConfigFromInstance = function(configInstance: Instance): ZiplineTagConfig
 end
 
 setUpContainer = function(container: Instance, config: ZiplineTagConfig)
-    Globals.container_isUnderWorkspace[container] = container:IsDescendantOf(workspace)
-    if Globals.container_isUnderWorkspace[container] then
-        ZiplineTrack.setUpZiplineGroup(container, isValidPart_function, false)
-    end
-
-    -- Ancestry changed
-    if Globals.container_ancestryChangedConnection[container] then
-        Globals.container_ancestryChangedConnection[container]:Disconnect()
-    end
-    Globals.container_ancestryChangedConnection[container] = container.AncestryChanged:Connect(function()
-        local previousIsUnderWorkspace = Globals.container_isUnderWorkspace[container]
-        local isUnderWorkspace = container:IsDescendantOf(workspace)
-        if previousIsUnderWorkspace ~= isUnderWorkspace then
-            if isUnderWorkspace then
-                ZiplineTrack.setUpZiplineGroup(container, isValidPart_function, false)
-            else
-                ZiplineTrack.cleanUpZiplineGroup(container)
-            end
-        end
-        Globals.container_isUnderWorkspace[container] = isUnderWorkspace
-    end)
+    ZiplineTrack.setUpZiplineGroup(container, isValidPart_function, false)
 end
 
 cleanUpContainer = function(container: Instance)
@@ -95,6 +67,7 @@ local function main()
     mechanic:setFunction_getConfigFromInstance(getConfigFromInstance)
     mechanic:setFunction_setUpContainer(setUpContainer)
     mechanic:setFunction_cleanUpContainer(cleanUpContainer)
+    mechanic:setValidAncestors({workspace})
     mechanic:run()
 end
 

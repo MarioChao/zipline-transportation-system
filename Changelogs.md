@@ -4,6 +4,12 @@
 
 - TBD.
 
+## [v0.6.0] Container mechanic v0.1.0 | 2026/08/13
+
+Migrated container mechanic to v0.1.0, which added custom ancestors loading.
+- Simplifies code for loading ziplines only when under `workspace`.
+- Fixes a potential server-side memory leak.
+
 ## [v0.5.0] Major desync fix + End reverse wait | 2026/08/05
 
 Fixed major desync for end-reverse ziplines.
