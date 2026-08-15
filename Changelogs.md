@@ -4,7 +4,11 @@
 
 - TBD.
 
-## [v0.7.0] Container mechanic v0.2.0 + Organized folders | 2026/08/14
+## [v0.7.1] Clean up wait for load | 2026/08/14 (2)
+
+`cleanUpZiplineGroup` now waits for the zipline group to be fully loaded before cleaning up.
+
+## [v0.7.0] Container mechanic v0.2.0 + Organized folders | 2026/08/14 (1)
 
 Migrated container mechanic to v0.2.0, which used [ScopedCollection](https://github.com/MarioChao/scoped-collection) internally and added documentation.
 

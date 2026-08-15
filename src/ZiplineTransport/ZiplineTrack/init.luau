@@ -30,6 +30,7 @@ end
 type LinkedRoute = typeof(LinkedRoute) & {_routeSegments: {any}}
 
 type ZiplineGroupInfo = {
+    isFinishedLoading: boolean,
     attachedObjectsFolder: Folder,
     config: ZiplineConfig,
     container: Instance,
@@ -1223,6 +1224,7 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
 
     -- Initialize
     local ziplineGroupInfo = {} :: ZiplineGroupInfo
+    ziplineGroupInfo.isFinishedLoading = false
     ziplineGroupInfo.container = container
     ziplineGroupInfo.visualizedFXFolder = nil
     ziplineGroupInfo.extraFXFolder = Instance.new("Folder")
@@ -1314,11 +1316,22 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     table.insert(ziplineGroupInfo.connections, RunService.Heartbeat:Connect(function()
         checkZiplineAttachedObjectsIteration(ziplineGroupInfo)
     end))
+
+    -- Set loaded
+    ziplineGroupInfo.isFinishedLoading = true
 end
 
 cleanUpZiplineGroup = function(container: Instance)
     local ziplineGroup = Globals.activeZiplineGroup[container]
     if ziplineGroup then
+        -- Wait for loading finish
+        do
+            local startTime = time()
+            while not ziplineGroup.isFinishedLoading and time() - startTime < 10 do
+                task.wait()
+            end
+        end
+
         -- Clear route
         ziplineGroup.route:cleanUp()
 
