@@ -4,6 +4,14 @@
 
 - TBD.
 
+## [v0.7.0] Container mechanic v0.2.0 + Organized folders | 2026/08/14
+
+Migrated container mechanic to v0.2.0, which used [ScopedCollection](https://github.com/MarioChao/scoped-collection) internally and added documentation.
+
+Zipline extra FX folders are now parented to a "ZiplineEffectInstances" folder instead of cluttered directly under workspace.
+
+Added dependencies section to README credits.
+
 ## [v0.6.0] Container mechanic v0.1.0 | 2026/08/13
 
 Migrated container mechanic to v0.1.0, which added custom ancestors loading.

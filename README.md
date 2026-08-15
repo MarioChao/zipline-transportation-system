@@ -104,6 +104,13 @@ AttachedObject `ObjectValue`:
 
 ## Credits
 
+Dependencies:
+- [ClientMovementDetector](https://github.com/MarioChao/client-movement-detector) for jump dismount & zipline user control.
+- [ContainerMechanic](https://github.com/MarioChao/container-mechanic) for loading & unloading ziplines by tags.
+- [SegmentedRoute](https://github.com/MarioChao/segmented-route) for creating zipline routes.
+- [SpatialQuery](https://github.com/AnyTrio/AnirioUtility) for determining waypoint activation.
+- [UIUtil](https://github.com/MarioChao/awesome-scripts-dump) for setting instance transparencies.
+
 Inspired by:
 - yemlow's pie conduit.
 - Super Mario Galaxy's [launch star](https://www.mariowiki.com/Launch_Star).

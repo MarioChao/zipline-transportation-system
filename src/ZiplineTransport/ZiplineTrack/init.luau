@@ -52,6 +52,10 @@ export type ZiplineConfig = ZiplineConfigs.ZiplineConfig
 
 local Constants = {}
 
+Constants.effectInstancesFolder = Instance.new("Folder")
+Constants.effectInstancesFolder.Name = "ZiplineEffectInstances"
+Constants.effectInstancesFolder.Parent = workspace
+
 Constants.controlPointsFolderName = "ControlPoints"
 Constants.controlPointAttachmentName = "ControlPointAttachment"
 
@@ -1223,7 +1227,7 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
     ziplineGroupInfo.visualizedFXFolder = nil
     ziplineGroupInfo.extraFXFolder = Instance.new("Folder")
     ziplineGroupInfo.extraFXFolder.Name = "ZiplineExtraFX"
-    ziplineGroupInfo.extraFXFolder.Parent = workspace
+    ziplineGroupInfo.extraFXFolder.Parent = Constants.effectInstancesFolder
     ziplineGroupInfo.extraInstances = {}
     ziplineGroupInfo.connections = {}
     ziplineGroupInfo.part_traverseThread = {}
