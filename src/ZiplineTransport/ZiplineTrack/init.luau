@@ -30,6 +30,7 @@ end
 type LinkedRoute = typeof(LinkedRoute) & {_routeSegments: {any}}
 
 type ZiplineGroupInfo = {
+    isCleaningUp: boolean,
     isFinishedLoading: boolean,
     attachedObjectsFolder: Folder,
     config: ZiplineConfig,
@@ -78,6 +79,8 @@ Constants.defaultFXInfo = script:WaitForChild("DefaultFXInfo")
 Constants.guideInstanceTagName = "ZiplineGuideInstance"
 
 Constants.rotateXToZOffsetCFrame = CFrame.fromRotationBetweenVectors(Vector3.xAxis, Vector3.zAxis)
+
+Constants.tinyOffsetVector3 = Vector3.new(0, -0.005, 0)
 
 Constants.isClient = RunService:IsClient()
 Constants.isServer = RunService:IsServer()
@@ -131,6 +134,7 @@ local traverseAlongZiplineWithDirection
 local getControlPointConfig
 local getOrderedControlPoints
 local getOrderedSegments
+local sanitizeOrderedSegments
 
 
 ----- Rider -----
@@ -1206,6 +1210,21 @@ getOrderedSegments = function(orderedControlPoints: {BasePart})
     return segments
 end
 
+sanitizeOrderedSegments = function(orderedSegments: {typeof(SegmentedRoute.RouteSegment.RouteSegmentBase.new())}, container: Instance)
+    for _, segment in orderedSegments do
+        -- Convert zero-length segments to one with very small traversal length
+        local segmentLength = SegmentedRoute.RouteUtil.Reparam.getSegmentDistanceAtAlpha(segment, 1)
+        if segmentLength < 0.001 then
+            warn(`[Zipline Track]: A zero-length segment is found for '{container}'. This will be treated as a small-length segment.`)
+            local startPosition = segment:getPositionAtAlpha(0)
+            local stopPosition = startPosition + Constants.tinyOffsetVector3
+            segment:clearControlPoints()
+            segment:addControlPoint_data(startPosition)
+            segment:addControlPoint_data(stopPosition)
+        end
+    end
+end
+
 
 ----- Set up functions -----
 
@@ -1224,6 +1243,7 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
 
     -- Initialize
     local ziplineGroupInfo = {} :: ZiplineGroupInfo
+    ziplineGroupInfo.isCleaningUp = false
     ziplineGroupInfo.isFinishedLoading = false
     ziplineGroupInfo.container = container
     ziplineGroupInfo.visualizedFXFolder = nil
@@ -1252,9 +1272,34 @@ setUpZiplineGroup = function(container: Instance, isValidPart_function: (BasePar
         ziplineGroupInfo.attachedObjectsFolder = attachedObjectsFolder
     end
 
-    -- Create zipline route
+    -- Get zipline route segments
     orderedControlPoints = getOrderedControlPoints(container)
+    while not next(orderedControlPoints) do
+        -- Exit if cleaning up
+        if ziplineGroupInfo.isCleaningUp then
+            orderedControlPoints = {Instance.new("Part")}
+            break
+        end
+
+        -- Yield & retry
+        task.wait()
+        orderedControlPoints = getOrderedControlPoints(container)
+    end
     orderedSegments = getOrderedSegments(orderedControlPoints)
+
+    -- If no segments present, add a very short segment
+    if not next(orderedSegments) then
+        local lastControlPoint = orderedControlPoints[#orderedControlPoints]
+        local bezierSegment = SegmentedRoute.RouteSegment.BezierCurve.new()
+        bezierSegment:addControlPoint_data(lastControlPoint.Position)
+        bezierSegment:addControlPoint_data(lastControlPoint.Position + Constants.tinyOffsetVector3)
+        table.insert(orderedSegments, bezierSegment)
+    end
+
+    -- Sanitize segments to prevent errors
+    sanitizeOrderedSegments(orderedSegments, container)
+
+    -- Create zipline route
     ziplineRoute = LinkedRoute.new()
     ziplineGroupInfo.route = ziplineRoute
     for _, segment in orderedSegments do
@@ -1324,6 +1369,9 @@ end
 cleanUpZiplineGroup = function(container: Instance)
     local ziplineGroup = Globals.activeZiplineGroup[container]
     if ziplineGroup then
+        -- Initiate clean up
+        ziplineGroup.isCleaningUp = true
+
         -- Wait for loading finish
         do
             local startTime = time()

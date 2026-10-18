@@ -2,7 +2,7 @@
 name = "mariochao/zipline-transportation-system"
 description = "A simple zipline/conduit system that carries objects through a series of waypoints."
 
-version = "0.7.1"
+version = "0.7.2"
 license = "MIT"
 authors = ["Mario Chao"]
 realm = "shared"
@@ -12,7 +12,7 @@ repository = "https://github.com/MarioChao/zipline-transportation-system"
 exclude = ["TestPlace"]
 
 [dependencies]
-ClientMovementDetector = "mariochao/client-movement-detector@^1.1.1"
+ClientMovementDetector = "mariochao/client-movement-detector@^1.1.2"
 ContainerMechanic = "mariochao/container-mechanic@0.2.0"
 SegmentedRoute = "mariochao/segmented-route@^0.1.3"
 SpatialQuery = "anytrio/spatial-query@^1.1.0"

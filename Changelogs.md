@@ -4,6 +4,18 @@
 
 - TBD.
 
+## [v0.7.2] CMD v1.1.2 + Streaming fix + Sanitized segments | 2026/10/18
+
+Updated [ClientMovementDetector](https://github.com/MarioChao/client-movement-detector) to v1.1.2, which added support for Roblox's new PlayerModule.
+
+Added a temporary fix for ziplines in streaming-enabled experiences.
+- Waits until at least one control point is present.
+- To prevent memory leak, calling cleanup stops the detection loop.
+
+Added a sanitization process for special zipline segments:
+- Zero-length segments are converted to one with a very small traversal length.
+- Single-point ziplines are now supported.
+
 ## [v0.7.1] Clean up wait for load | 2026/08/14 (2)
 
 `cleanUpZiplineGroup` now waits for the zipline group to be fully loaded before cleaning up.
